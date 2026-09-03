@@ -320,7 +320,7 @@
     <!-- Normal Bracket (保留至結算畫面供隨時修正) -->
     <div v-if="status === 'bracket' || (status === 'champion_crowned' && tournamentMode !== 'redemption')" class="space-y-8 relative mt-6">
         <div class="flex justify-between items-center bg-purple-950/80 border border-purple-700/80 text-neon-blue p-5 rounded-xl shadow-lg neon-glow-purple">
-            <h2 class="text-2xl font-black">👑 決賽圈賽程表 (可隨時點擊分數進行校正)</h2>
+            <h2 class="text-2xl font-black">👑 決賽圈賽程表 <span class="text-sm font-normal text-purple-300 ml-2 hidden md:inline">(可隨時點擊分數進行校正)</span></h2>
         </div>
 
         <div class="space-y-4 relative">
@@ -384,7 +384,7 @@
     <!-- Mode 4: Redemption Bracket View (保留至結算畫面供隨時修正) -->
     <div v-if="status === 'redemption_bracket' || (status === 'champion_crowned' && tournamentMode === 'redemption')" class="space-y-6 relative mt-6">
         <div class="flex justify-between items-center bg-rose-950/80 border border-rose-700/80 text-rose-300 p-5 rounded-xl shadow-lg shadow-rose-900/50">
-            <h2 class="text-xl md:text-2xl font-black tracking-widest">⚔️ 敗部復活賽程表 (可隨時點擊分數進行校正)</h2>
+            <h2 class="text-xl md:text-2xl font-black tracking-widest">⚔️ 敗部復活賽程表 <span class="text-sm font-normal text-rose-300 ml-2 hidden md:inline">(可隨時點擊分數進行校正)</span></h2>
         </div>
 
         <div class="w-full overflow-x-auto custom-scrollbar pb-8 pt-4 bg-gray-950/50 rounded-2xl border border-gray-800">
@@ -503,18 +503,33 @@
                 <div class="text-5xl mb-2 drop-shadow-md">🥈</div>
                 <h3 class="text-gray-400 font-black tracking-widest mb-2 text-lg">亞軍 (2nd)</h3>
                 <p class="text-3xl font-bold text-white mb-3">{{ finalRunnerUp ? finalRunnerUp.name : '-' }}</p>
+                <div v-if="finalRunnerUp" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full">
+                    <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-gray-300">得: {{ finalRunnerUp.totalPoints }}</span>
+                    <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-gray-400">失: {{ finalRunnerUp.pointsAgainst }}</span>
+                    <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalRunnerUp.totalPoints - finalRunnerUp.pointsAgainst) > 0">+</span>{{ finalRunnerUp.totalPoints - finalRunnerUp.pointsAgainst }}</span>
+                </div>
             </div>
             
             <div class="bg-amber-950/60 border border-amber-700/80 p-6 rounded-2xl flex flex-col items-center shadow-lg hover:border-amber-500 transition-colors">
                 <div class="text-5xl mb-2 drop-shadow-md">🥉</div>
                 <h3 class="text-amber-600 font-black tracking-widest mb-2 text-lg">季軍 (3rd)</h3>
                 <p class="text-3xl font-bold text-white mb-3">{{ finalThird ? finalThird.name : '-' }}</p>
+                <div v-if="finalThird" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full">
+                    <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-amber-400">得: {{ finalThird.totalPoints }}</span>
+                    <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-amber-500">失: {{ finalThird.pointsAgainst }}</span>
+                    <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalThird.totalPoints - finalThird.pointsAgainst) > 0">+</span>{{ finalThird.totalPoints - finalThird.pointsAgainst }}</span>
+                </div>
             </div>
             
             <div class="bg-blue-950/50 border border-blue-800/60 p-6 rounded-2xl flex flex-col items-center shadow-lg hover:border-blue-500 transition-colors">
                 <div class="text-5xl mb-2 drop-shadow-md">🏅</div>
                 <h3 class="text-blue-500 font-black tracking-widest mb-2 text-lg">殿軍 (4th)</h3>
                 <p class="text-3xl font-bold text-white mb-3">{{ finalFourth ? finalFourth.name : '-' }}</p>
+                <div v-if="finalFourth" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full">
+                    <span class="bg-black/30 border border-blue-800/50 px-2 py-1 rounded text-blue-300">得: {{ finalFourth.totalPoints }}</span>
+                    <span class="bg-black/30 border border-blue-800/50 px-2 py-1 rounded text-blue-400">失: {{ finalFourth.pointsAgainst }}</span>
+                    <span class="bg-black/30 border border-blue-800/50 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalFourth.totalPoints - finalFourth.pointsAgainst) > 0">+</span>{{ finalFourth.totalPoints - finalFourth.pointsAgainst }}</span>
+                </div>
             </div>
         </div>
 
@@ -624,14 +639,14 @@ createApp({
         const finalThird = ref(null);     
         const finalFourth = ref(null);    
 
-        // WebRTC Config (加入了強大的 Google/Twilio 穿透伺服器，提高跨網路連線率)
+        // WebRTC Config
         const isSpectator = ref(false);
         const spectatorCount = ref(0);
         const showQrModal = ref(false);
         const qrImageUrl = ref('');
         const peerInstance = ref(null);
         const activeConnections = ref([]);
-        const connectionStatus = ref('connecting'); // 觀眾連線狀態防呆機制
+        const connectionStatus = ref('connecting'); 
         
         const peerConfig = {
             config: {
@@ -661,12 +676,13 @@ createApp({
             return 0;
         });
 
-        // －－－ 核心：動態重算系統 －－－
+        // －－－ 核心：動態重算系統 (加入 Diff 判定防洗資料) －－－
         const onScoreChange = () => {
             recalculateAllStats();
             if (bracketMatches.value.length > 0) updateBracketAdvancements();
             if (wbMatches.value.length > 0) updateRedemptionAdvancements();
             if (status.value === 'champion_crowned') updateFinalChampions();
+            saveToLocalStorage(); // 立刻廣播給觀眾
         };
 
         const recalculateAllStats = () => {
@@ -744,23 +760,43 @@ createApp({
                     const nextMatch = nextRound[j/2];
                     
                     const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
+                    
+                    // 只在晉級的選手「換人」時，才清空下一場分數，避免輸入分數時消失
+                    const p1Changed = nextMatch.player1?.id !== w1Info.p?.id;
+                    const p2Changed = nextMatch.player2?.id !== w2Info.p?.id;
+
                     nextMatch.player1 = w1Info.p; nextMatch.player1Seed = w1Info.s;
                     nextMatch.player2 = w2Info.p; nextMatch.player2Seed = w2Info.s;
                     
                     const isBye = !w1Info.p || !w2Info.p;
                     nextMatch.isBye = isBye;
-                    if(isBye) { nextMatch.player1Score = w1Info.p ? 1 : 0; nextMatch.player2Score = w2Info.p ? 1 : 0; }
-                    else { nextMatch.player1Score = null; nextMatch.player2Score = null; }
+                    if (isBye) { 
+                        nextMatch.player1Score = w1Info.p ? 1 : 0; 
+                        nextMatch.player2Score = w2Info.p ? 1 : 0; 
+                    } else if (p1Changed || p2Changed) { 
+                        nextMatch.player1Score = null; 
+                        nextMatch.player2Score = null; 
+                    }
                 }
             }
             if (bracketMatches.value.length > 1 && normalBronzeMatch.value) {
                 const sf = bracketMatches.value[bracketMatches.value.length - 2];
                 const loser1 = getLoserInfo(sf[0]).p; const loser2 = getLoserInfo(sf[1]).p;
+                
+                const p1Changed = normalBronzeMatch.value.player1?.id !== loser1?.id;
+                const p2Changed = normalBronzeMatch.value.player2?.id !== loser2?.id;
+
                 normalBronzeMatch.value.player1 = loser1; normalBronzeMatch.value.player2 = loser2;
                 const isBye = !loser1 || !loser2;
                 normalBronzeMatch.value.isBye = isBye;
-                if(isBye) { normalBronzeMatch.value.player1Score = loser1 ? 1 : 0; normalBronzeMatch.value.player2Score = loser2 ? 1 : 0; }
-                else { normalBronzeMatch.value.player1Score = null; normalBronzeMatch.value.player2Score = null; }
+                
+                if (isBye) { 
+                    normalBronzeMatch.value.player1Score = loser1 ? 1 : 0; 
+                    normalBronzeMatch.value.player2Score = loser2 ? 1 : 0; 
+                } else if (p1Changed || p2Changed) { 
+                    normalBronzeMatch.value.player1Score = null; 
+                    normalBronzeMatch.value.player2Score = null; 
+                }
             }
         };
 
@@ -773,14 +809,20 @@ createApp({
                     if (nextWb) {
                         const w1 = getWinnerInfo(curWb[i]).p; const w2 = getWinnerInfo(curWb[i+1]).p;
                         const isBye = !w1 || !w2;
+                        const p1Changed = nextWb[i/2].player1?.id !== w1?.id;
+                        const p2Changed = nextWb[i/2].player2?.id !== w2?.id;
                         nextWb[i/2].player1 = w1; nextWb[i/2].player2 = w2; nextWb[i/2].isBye = isBye;
                         if(isBye) { nextWb[i/2].player1Score = w1 ? 1 : 0; nextWb[i/2].player2Score = w2 ? 1 : 0; }
+                        else if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; }
                     }
                     if (phase === 0 && nextLbR0) {
                         const l1 = getLoserInfo(curWb[i]).p; const l2 = getLoserInfo(curWb[i+1]).p;
                         const isBye = !l1 || !l2;
+                        const p1Changed = nextLbR0[i/2].player1?.id !== l1?.id;
+                        const p2Changed = nextLbR0[i/2].player2?.id !== l2?.id;
                         nextLbR0[i/2].player1 = l1; nextLbR0[i/2].player2 = l2; nextLbR0[i/2].isBye = isBye;
                         if(isBye) { nextLbR0[i/2].player1Score = l1 ? 1 : 0; nextLbR0[i/2].player2Score = l2 ? 1 : 0; }
+                        else if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; }
                     }
                 }
 
@@ -790,20 +832,37 @@ createApp({
                         for (let i = 0; i < curLb.length; i += 2) {
                             const w1 = getWinnerInfo(curLb[i]).p; const w2 = getWinnerInfo(curLb[i+1]).p;
                             const isBye = !w1 || !w2;
+                            const p1Changed = nextLb[i/2].player1?.id !== w1?.id;
+                            const p2Changed = nextLb[i/2].player2?.id !== w2?.id;
                             nextLb[i/2].player1 = w1; nextLb[i/2].player2 = w2; nextLb[i/2].isBye = isBye;
                             if(isBye) { nextLb[i/2].player1Score = w1 ? 1 : 0; nextLb[i/2].player2Score = w2 ? 1 : 0; }
+                            else if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; }
                         }
                     }
                 }
 
                 if (phase === R - 1) {
                     const wChamp = getWinnerInfo(curWb[0]).p; const lChamp = lbMatches.value.length > 0 ? getWinnerInfo(lbMatches.value[R - 2][0]).p : null;
+                    const gfP1Changed = gfMatch.value.player1?.id !== wChamp?.id;
+                    const gfP2Changed = gfMatch.value.player2?.id !== lChamp?.id;
                     gfMatch.value.player1 = wChamp; gfMatch.value.player2 = lChamp;
-                    if (!wChamp || !lChamp) { gfMatch.value.isBye = true; gfMatch.value.player1Score = wChamp ? 1 : 0; gfMatch.value.player2Score = lChamp ? 1 : 0; }
+                    if (!wChamp || !lChamp) { 
+                        gfMatch.value.isBye = true; gfMatch.value.player1Score = wChamp ? 1 : 0; gfMatch.value.player2Score = lChamp ? 1 : 0; 
+                    } else {
+                        gfMatch.value.isBye = false;
+                        if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
+                    }
                     
                     const wLoser = getLoserInfo(curWb[0]).p; const lLoser = lbMatches.value.length > 0 ? getLoserInfo(lbMatches.value[R - 2][0]).p : null;
+                    const rzP1Changed = redemptionBronzeMatch.value.player1?.id !== wLoser?.id;
+                    const rzP2Changed = redemptionBronzeMatch.value.player2?.id !== lLoser?.id;
                     redemptionBronzeMatch.value.player1 = wLoser; redemptionBronzeMatch.value.player2 = lLoser;
-                    if (!wLoser || !lLoser) { redemptionBronzeMatch.value.isBye = true; redemptionBronzeMatch.value.player1Score = wLoser ? 1 : 0; redemptionBronzeMatch.value.player2Score = lLoser ? 1 : 0; }
+                    if (!wLoser || !lLoser) { 
+                        redemptionBronzeMatch.value.isBye = true; redemptionBronzeMatch.value.player1Score = wLoser ? 1 : 0; redemptionBronzeMatch.value.player2Score = lLoser ? 1 : 0; 
+                    } else {
+                        redemptionBronzeMatch.value.isBye = false;
+                        if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; }
+                    }
                 }
             }
         };
@@ -828,7 +887,7 @@ createApp({
         };
 
         const removePlayer = (index) => players.value.splice(index, 1);
-        const clearPlayerList = () => { if (confirm('確定要清空所有選手名單嗎？')) players.value = []; };
+        const clearPlayerList = () => { if (confirm('確定要清空所有選手名單嗎？')) { players.value = []; saveToLocalStorage(); } };
 
         const startTournament = () => {
             status.value = 'playing';
@@ -840,6 +899,7 @@ createApp({
             else if (tournamentMode.value === 'round_robin') { generateRoundRobin(); } 
             else if (tournamentMode.value === 'super_round_robin') { generateSuperRoundRobin(); } 
             else if (tournamentMode.value === 'redemption') { initRedemptionBracket(); }
+            saveToLocalStorage(); // 強制即時廣播
         };
 
         const generateMatchesForRound = (rIndex) => {
@@ -874,6 +934,7 @@ createApp({
             const activePool = players.value.filter(p => !p.advanced && !p.eliminated);
             if (activePool.length <= 1 || currentRound.value >= (isSmallTournament.value ? 3 : 5)) { status.value = 'swiss_finished'; } 
             else { currentRound.value += 1; generateMatchesForRound(currentRound.value); }
+            saveToLocalStorage();
         };
 
         const getRRGroupSizes = (n) => {
@@ -929,8 +990,8 @@ createApp({
             return true;
         });
 
-        const finishRoundRobin = () => { status.value = 'swiss_finished'; };
-        const forceFinishPhase = () => { status.value = 'swiss_finished'; };
+        const finishRoundRobin = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
+        const forceFinishPhase = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
 
         const sortedPlayers = computed(() => {
             return [...players.value].sort((a, b) => {
@@ -966,7 +1027,7 @@ createApp({
             if (confirm(`確定要切換為「${names[modes.indexOf(nextMode)]}」並重新洗牌開打嗎？\n（目前的比分進度將會遺失）`)) { tournamentMode.value = nextMode; resetTournamentState(); startTournament(); saveToLocalStorage(); }
         };
 
-        const resetKeepPlayers = () => { if (confirm('確定要重新開始比賽嗎？\n（將保留目前名單，並再次隨機打亂所有對戰組合）')) { resetTournamentState(); startTournament(); saveToLocalStorage(); } };
+        const resetKeepPlayers = () => { if (confirm('確定要重新開始比賽嗎？\n（將保留目前名單，並再次隨機打打所有對戰組合）')) { resetTournamentState(); startTournament(); saveToLocalStorage(); } };
         const resetAll = () => { if (confirm('確定要完全重置嗎？\n（包含選手名單在內的所有資料都將被清空）')) { players.value = []; resetTournamentState(); status.value = 'setup'; saveToLocalStorage(); } };
 
         const startBracket = (size) => {
@@ -1022,6 +1083,7 @@ createApp({
                 status.value = 'champion_crowned';
                 updateFinalChampions();
             }
+            saveToLocalStorage();
         };
 
         const initRedemptionBracket = () => {
@@ -1076,6 +1138,7 @@ createApp({
                 status.value = 'champion_crowned';
                 updateFinalChampions();
             }
+            saveToLocalStorage();
         };
 
         const finalPlayerStats = computed(() => {
@@ -1125,7 +1188,7 @@ createApp({
                 finalChampion: finalChampion.value, finalRunnerUp: finalRunnerUp.value, finalThird: finalThird.value, finalFourth: finalFourth.value
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-            broadcastState(stateToSave);
+            broadcastState(stateToSave); // 修改任何東西後立即廣播
         };
 
         const loadFromStateObject = (parsed) => {
@@ -1153,7 +1216,7 @@ createApp({
             finalChampion.value = link(parsed.finalChampion); finalRunnerUp.value = link(parsed.finalRunnerUp);
             finalThird.value = link(parsed.finalThird); finalFourth.value = link(parsed.finalFourth);
             
-            onScoreChange();
+            onScoreChange(); // 載入完畢後自動重算一次
         };
 
         const loadFromLocalStorage = () => {
@@ -1222,7 +1285,7 @@ createApp({
                     peerInstance.value.on('connection', (conn) => {
                         activeConnections.value.push(conn);
                         spectatorCount.value = activeConnections.value.length;
-                        conn.on('open', () => { saveToLocalStorage(); });
+                        conn.on('open', () => { saveToLocalStorage(); }); // 觀眾一連線就發送最新狀態
                         conn.on('close', () => {
                             activeConnections.value = activeConnections.value.filter(c => c !== conn);
                             spectatorCount.value = activeConnections.value.length;
@@ -1234,6 +1297,7 @@ createApp({
 
         onMounted(() => { loadFromLocalStorage(); initPeer(); });
 
+        // 只在主控端修改時才寫入快取與發送
         watch([status, tournamentMode, players, currentRound, allSwissMatches, rrGroups, bracketMatches, currentBracketRoundIndex, normalBronzeMatch, wbMatches, lbMatches, gfMatch, redemptionBronzeMatch, currentRedemptionPhase, finalChampion],
             () => { if (!isSpectator.value) saveToLocalStorage(); },
             { deep: true }
