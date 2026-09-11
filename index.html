@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡戰鬥陀螺X 瑞士複合制/小組循環制⚡</title>
+    <title>⚡戰鬥陀螺X 賽事管理系統⚡</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -21,7 +21,6 @@
         }
     </script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 引入 PeerJS (點對點連線) 庫 -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         [v-cloak] { display: none !important; }
@@ -38,6 +37,10 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #0b0f19; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #374151; }
+        
+        /* 增加自動彈出的滑順過渡效果 */
+        .fade-enter-active, .fade-leave-active { transition: all 0.5s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(20px); }
     </style>
 </head>
 <body class="bg-neon-bg text-gray-200 font-sans min-h-screen p-4 md:p-8 selection:bg-neon-blue selection:text-black relative">
@@ -46,15 +49,12 @@
 
     <!-- 頂部即時廣播狀態與 QR Code 按鈕 -->
     <div class="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-3 z-50">
-        <!-- 觀眾視角標籤 (加入連線狀態顯示) -->
         <div v-if="isSpectator" class="bg-gray-900/90 border border-gray-700 text-gray-300 px-3 py-1.5 rounded-lg text-xs md:text-sm font-black shadow-lg flex items-center gap-2">
             <span>👀</span> 觀眾視角
             <span v-if="connectionStatus === 'connected'" class="text-emerald-400 ml-1">🟢 已連線</span>
             <span v-else-if="connectionStatus === 'disconnected'" class="text-red-400 ml-1 animate-pulse">🔴 連線中斷 (重試中)</span>
             <span v-else class="text-amber-400 ml-1 animate-pulse">🟡 連線尋找中...</span>
         </div>
-        
-        <!-- 主控端視角 -->
         <template v-else>
             <div class="text-xs font-bold text-gray-400 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-lg flex items-center gap-2">
                 <span class="relative flex h-2 w-2">
@@ -64,7 +64,7 @@
                 廣播中：{{ spectatorCount }} 人在線
             </div>
             <button @click="showQrModal = true" class="bg-cyan-950 border border-cyan-500 text-cyan-300 hover:bg-cyan-900 px-3 py-1.5 rounded-lg text-sm font-black shadow-[0_0_10px_rgba(34,211,238,0.3)] transition flex items-center gap-1">
-                <span>📱</span> 開啟廣播大廳
+                <span>📱</span> 開啟大廳
             </button>
         </template>
     </div>
@@ -73,13 +73,11 @@
     <div v-if="showQrModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" @click.self="showQrModal = false">
         <div class="bg-gray-900 border border-cyan-500 p-8 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.4)] flex flex-col items-center max-w-sm w-full mx-4">
             <h3 class="text-2xl font-black text-neon-blue mb-2">📡 賽事廣播大廳</h3>
-            <p class="text-gray-400 text-sm mb-6 text-center">讓觀賽者掃描下方條碼，即可在他們的手機上同步觀看即時賽況！</p>
-            
+            <p class="text-gray-400 text-sm mb-6 text-center">讓觀賽者掃描下方條碼同步觀看即時賽況！</p>
             <div class="bg-white p-3 rounded-xl shadow-lg mb-6">
-                <img v-if="qrImageUrl" :src="qrImageUrl" alt="Spectator QR Code" class="w-48 h-48 md:w-56 md:h-56 object-contain">
-                <div v-else class="w-48 h-48 flex items-center justify-center text-gray-800 font-bold">載入條碼中...</div>
+                <img v-if="qrImageUrl" :src="qrImageUrl" class="w-48 h-48 md:w-56 md:h-56 object-contain">
+                <div v-else class="w-48 h-48 flex items-center justify-center text-gray-800 font-bold">載入中...</div>
             </div>
-            
             <button @click="showQrModal = false" class="bg-gray-800 text-white font-bold w-full py-3 rounded-xl hover:bg-gray-700 transition">關閉面板</button>
         </div>
     </div>
@@ -88,56 +86,72 @@
     <div class="flex flex-col items-center justify-center mb-6 border-b border-gray-800 pb-5 relative text-center gap-4 mt-8 md:mt-0">
         <div>
             <h1 class="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-purple-500 tracking-wider uppercase drop-shadow-lg">
-                ⚡戰鬥陀螺X 瑞士複合制/小組循環制⚡
+                ⚡戰鬥陀螺X 賽事管理系統⚡
             </h1>
-            <div class="flex items-center justify-center gap-3 mt-3 text-xs md:text-sm">
+            <div v-if="['swiss', 'round_robin', 'super_round_robin'].includes(tournamentMode)" class="flex items-center justify-center gap-3 mt-3 text-xs md:text-sm">
                 <span class="text-slate-300 font-bold bg-cyan-950/60 px-3 py-1 rounded-full border border-cyan-800/60 shadow-sm">前段積分/賽程</span>
                 <span class="text-neon-blue font-bold">➔</span>
                 <span class="text-purple-300 font-bold bg-purple-950/60 px-3 py-1 rounded-full border border-purple-800/60 shadow-sm">冠軍決賽圈</span>
             </div>
+            <div v-else class="flex items-center justify-center gap-3 mt-3 text-xs md:text-sm">
+                <span class="text-purple-300 font-bold bg-purple-950/60 px-3 py-1 rounded-full border border-purple-800/60 shadow-sm">🏆 一戰定生死單淘汰</span>
+            </div>
             <div v-if="!isSpectator" class="text-emerald-400 text-xs mt-2 font-bold flex items-center justify-center gap-1">
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span> 本機自動存檔已啟動 | 即時校正啟用中
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span> 自動存檔已啟動 | 智慧全自動晉級判斷
             </div>
         </div>
 
         <div v-if="status !== 'setup' && !isSpectator" class="flex items-center justify-center gap-2 md:gap-3 flex-wrap mt-2">
-            <button @click="returnToSetup" class="bg-gray-800 border border-gray-600 text-gray-200 px-3 py-2 rounded-xl hover:bg-gray-700 transition duration-200 font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🏠</span> 返回首頁</button>
-            <button @click="toggleMode" class="bg-indigo-950 border border-indigo-700 text-indigo-300 px-3 py-2 rounded-xl hover:bg-indigo-900 transition duration-200 font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🔀</span> 切換賽制</button>
-            <button @click="resetKeepPlayers" class="bg-cyan-950 border border-cyan-700 text-neon-blue px-3 py-2 rounded-xl hover:bg-cyan-900 hover:neon-glow-blue transition duration-200 font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🔄</span> 重新比賽</button>
-            <button @click="resetAll" class="bg-red-950/30 border border-red-800 text-red-400 hover:text-red-300 hover:bg-red-900/50 px-3 py-2 rounded-xl transition duration-200 font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🗑️</span> 清空重置</button>
+            <button @click="returnToSetup" class="bg-gray-800 border border-gray-600 text-gray-200 px-3 py-2 rounded-xl hover:bg-gray-700 transition font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🏠</span> 返回首頁</button>
+            <button @click="toggleMode" class="bg-indigo-950 border border-indigo-700 text-indigo-300 px-3 py-2 rounded-xl hover:bg-indigo-900 transition font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🔀</span> 切換賽制</button>
+            <button @click="resetKeepPlayers" class="bg-cyan-950 border border-cyan-700 text-neon-blue px-3 py-2 rounded-xl hover:bg-cyan-900 hover:neon-glow-blue transition font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🔄</span> 重新比賽</button>
+            <button @click="resetAll" class="bg-red-950/30 border border-red-800 text-red-400 hover:bg-red-900/50 px-3 py-2 rounded-xl transition font-bold flex items-center gap-2 text-xs md:text-sm shadow-md"><span>🗑️</span> 清空重置</button>
         </div>
     </div>
 
     <!-- Setup View -->
     <div v-if="status === 'setup'" class="space-y-6 flex flex-col items-center text-center">
-        
-        <div class="w-full max-w-4xl bg-gray-900/80 p-3 rounded-2xl border border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-3" :class="{'opacity-50 pointer-events-none': isSpectator}">
+        <div class="w-full max-w-5xl bg-gray-900/80 p-3 rounded-2xl border border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" :class="{'opacity-50 pointer-events-none': isSpectator}">
             <label class="cursor-pointer relative">
                 <input type="radio" value="swiss" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-cyan-950/50 peer-checked:border-neon-blue peer-checked:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all flex flex-col items-center justify-center gap-2">
                     <span class="text-xl font-black text-gray-400 peer-checked:text-neon-blue">📊 瑞士制</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-cyan-300">同戰績配對，達標即晉級，適合人數多</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-cyan-300">同戰績配對，達標即晉級</span>
                 </div>
             </label>
             <label class="cursor-pointer relative">
                 <input type="radio" value="round_robin" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-amber-950/40 peer-checked:border-neon-gold peer-checked:shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex flex-col items-center justify-center gap-2">
                     <span class="text-xl font-black text-gray-400 peer-checked:text-neon-gold">📐 小組循環賽</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-amber-200">依人數拆分小組打滿內戰，取前段班晉級</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-amber-200">依人數拆分小組打滿內戰</span>
                 </div>
             </label>
             <label class="cursor-pointer relative">
                 <input type="radio" value="super_round_robin" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-fuchsia-950/40 peer-checked:border-neon-purple peer-checked:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all flex flex-col items-center justify-center gap-2">
                     <span class="text-xl font-black text-gray-400 peer-checked:text-neon-purple">⚔️ 超級車輪戰</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-fuchsia-200">全體大亂鬥！所有人皆須互打一場算總積分</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-fuchsia-200">全體大亂鬥！算總積分</span>
                 </div>
             </label>
             <label class="cursor-pointer relative">
                 <input type="radio" value="redemption" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-rose-950/40 peer-checked:border-rose-500 peer-checked:shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-all flex flex-col items-center justify-center gap-2">
-                    <span class="text-xl font-black text-gray-400 peer-checked:text-rose-500">🛡️ 敗部復活單淘汰</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-rose-200">直接淘汰賽，設有敗部復活與季軍戰機制</span>
+                    <span class="text-xl font-black text-gray-400 peer-checked:text-rose-500">🛡️ 敗部復活制</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-rose-200">具備敗部復活與季軍戰機制</span>
+                </div>
+            </label>
+            <label class="cursor-pointer relative">
+                <input type="radio" value="single_elimination" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
+                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-blue-950/40 peer-checked:border-blue-500 peer-checked:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all flex flex-col items-center justify-center gap-2">
+                    <span class="text-xl font-black text-gray-400 peer-checked:text-blue-500">🏆 經典單淘汰</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-blue-200">由下往上樹狀圖，一戰定生死</span>
+                </div>
+            </label>
+            <label class="cursor-pointer relative">
+                <input type="radio" value="team_3v3" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
+                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-orange-950/40 peer-checked:border-orange-500 peer-checked:shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all flex flex-col items-center justify-center gap-2">
+                    <span class="text-xl font-black text-gray-400 peer-checked:text-orange-500">🤝 3v3 戰隊模式</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-orange-200">單淘汰機制，3人陣亡即淘汰</span>
                 </div>
             </label>
         </div>
@@ -146,7 +160,7 @@
             <h3 class="text-blue-400 font-black mb-3 flex items-center gap-2 text-lg tracking-wider"><span>📋</span> 排名與結算規則說明</h3>
             <p class="text-sm text-gray-300 leading-relaxed mb-3 font-semibold">排名優先順序如下：</p>
             <ol class="list-decimal list-inside text-sm text-gray-100 font-bold space-y-2.5 ml-1 mb-3">
-                <li><span class="text-emerald-400 font-black">勝率(循環賽) / 勝敗場數(瑞士制)</span></li>
+                <li><span class="text-emerald-400 font-black">勝率(循環賽) / 勝敗場數(瑞士制/淘汰制)</span></li>
                 <li class="bg-purple-950/40 p-2 rounded-lg border border-purple-800/50 inline-block w-full">
                     <span class="text-purple-400 font-black tracking-wide">得失分差 (Net Score)</span>：總得分 減去 總失分。
                 </li>
@@ -154,47 +168,63 @@
             </ol>
         </div>
 
-        <div class="w-full max-w-3xl">
+        <!-- 3v3 戰隊報名區 -->
+        <div v-if="tournamentMode === 'team_3v3'" class="w-full max-w-3xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-4">
+                <h2 class="text-lg font-bold text-orange-500">戰隊報名區 (目前：{{ players.length }} 隊)</h2>
+                <button v-if="players.length > 0 && !isSpectator" @click="clearPlayerList" class="text-xs text-red-400 font-bold bg-red-950/40 border border-red-800/60 px-3 py-1 rounded-lg">🗑️ 清空名單</button>
+            </div>
+            <div v-if="!isSpectator" class="flex flex-col gap-3 justify-center w-full max-w-lg mx-auto bg-gray-900 p-5 rounded-2xl border border-gray-700 shadow-inner">
+                <input v-model="newPlayerName" @keyup.enter="addTeam" type="text" placeholder="輸入戰隊名稱 (例: 隊伍A)..." class="border border-gray-600 bg-gray-950 p-3 rounded-xl w-full focus:ring-2 focus:ring-orange-500 outline-none text-white text-center font-bold">
+                <div class="flex gap-2">
+                    <input v-model="newTeamMembers[0]" type="text" placeholder="隊員 1" class="border border-gray-600 bg-gray-950 p-2 rounded-lg flex-1 text-center text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                    <input v-model="newTeamMembers[1]" type="text" placeholder="隊員 2" class="border border-gray-600 bg-gray-950 p-2 rounded-lg flex-1 text-center text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                    <input v-model="newTeamMembers[2]" type="text" placeholder="隊員 3" class="border border-gray-600 bg-gray-950 p-2 rounded-lg flex-1 text-center text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                </div>
+                <button @click="addTeam" class="bg-gradient-to-r from-orange-600 to-red-600 text-white px-8 py-3 rounded-xl hover:from-orange-500 hover:to-red-500 transition font-black shadow-lg w-full mt-2">新增戰隊</button>
+            </div>
+        </div>
+
+        <!-- 經典/常規報名區 -->
+        <div v-else class="w-full max-w-3xl">
             <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-4">
                 <h2 class="text-lg font-bold text-neon-blue">選手報名區 (目前：{{ players.length }} 人)</h2>
-                <button v-if="players.length > 0 && !isSpectator" @click="clearPlayerList" class="text-xs text-red-400 hover:text-red-300 font-bold bg-red-950/40 border border-red-800/60 px-3 py-1 rounded-lg transition">🗑️ 清空選手名單</button>
+                <button v-if="players.length > 0 && !isSpectator" @click="clearPlayerList" class="text-xs text-red-400 hover:text-red-300 font-bold bg-red-950/40 border border-red-800/60 px-3 py-1 rounded-lg transition">🗑️ 清空名單</button>
             </div>
             <div v-if="!isSpectator" class="flex justify-center gap-3">
                 <input v-model="newPlayerName" @keyup.enter="addPlayer" type="text" placeholder="輸入選手名稱..." class="border border-gray-700 bg-gray-900/80 p-3.5 rounded-xl flex-1 focus:ring-2 focus:ring-neon-blue outline-none text-white text-lg text-center shadow-inner">
                 <button @click="addPlayer" class="bg-gradient-to-r from-cyan-600 to-teal-600 text-white px-8 py-3.5 rounded-xl hover:from-cyan-500 hover:to-teal-500 hover:neon-glow-blue transition font-extrabold shadow-lg">新增</button>
             </div>
-            <div class="flex flex-wrap justify-center gap-3 mt-6 min-h-[60px]">
-                <div v-for="(player, index) in players" :key="player.id" class="bg-gray-800/80 px-4 py-2 rounded-xl flex items-center justify-center gap-3 border border-gray-700 shadow-md transition">
-                    <span class="font-bold text-gray-100">{{ player.name }}</span>
-                    <button v-if="!isSpectator" @click="removePlayer(index)" class="text-red-400 hover:text-red-300 font-bold text-xl leading-none">&times;</button>
-                </div>
+        </div>
+        
+        <div class="w-full max-w-4xl flex flex-wrap justify-center gap-3 min-h-[60px]">
+            <div v-for="(player, index) in players" :key="player.id" class="bg-gray-800/80 px-4 py-2 rounded-xl flex items-center justify-center gap-3 border border-gray-700 shadow-md transition" :class="{'border-orange-600/50': player.isTeam}">
+                <span class="font-bold text-gray-100 flex items-center gap-1"><span v-if="player.isTeam">🛡️</span> {{ player.name }}</span>
+                <button v-if="!isSpectator" @click="removePlayer(index)" class="text-red-400 hover:text-red-300 font-bold text-xl leading-none">&times;</button>
             </div>
         </div>
 
         <div class="text-center pt-6 border-t border-gray-800 w-full">
             <template v-if="!isSpectator">
-                <!-- 動態顯示預期場次 -->
                 <div v-if="players.length >= 4" class="mb-5 flex justify-center">
                     <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-950/60 border border-indigo-500/50 rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-                        <span class="text-indigo-400 font-bold text-sm md:text-base">📈 當前模式/人數 預估總場次：</span>
-                        <span class="text-white font-black text-base md:text-lg tracking-wider" :class="{'text-amber-400': players.length === 5 && tournamentMode === 'round_robin'}">{{ expectedMatchesText }}</span>
+                        <span class="text-indigo-400 font-bold text-sm md:text-base">📈 當前模式預估總場次：</span>
+                        <span class="text-white font-black text-base md:text-lg tracking-wider">{{ expectedMatchesText }}</span>
                     </div>
                 </div>
-                
                 <template v-if="players.length < 4">
-                    <p class="text-red-400 text-sm font-bold mt-2">⚠️ 至少需 4 名選手方可開始賽事</p>
+                    <p class="text-red-400 text-sm font-bold mt-2">⚠️ 至少需 4 名 / 4 隊方可開始賽事</p>
                 </template>
                 <template v-else-if="players.length === 5 && tournamentMode === 'round_robin'">
-                    <!-- 5人循環賽防呆提示 -->
-                    <p class="text-amber-400 text-sm md:text-base font-bold mt-2 mb-4 bg-amber-950/70 inline-block px-5 py-3 rounded-lg border border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                        ⚠️ 總人數剛好為 5 人時不適合進行分組，<br class="md:hidden">建議直接切換至上方「⚔️ 超級車輪戰」獲得最佳體驗！
+                    <p class="text-amber-400 text-sm font-bold mt-2 mb-4 bg-amber-950/70 inline-block px-5 py-3 rounded-lg border border-amber-500">
+                        ⚠️ 總人數剛好為 5 人時建議直接切換至「⚔️ 超級車輪戰」獲得最佳體驗！
                     </p>
                 </template>
                 <template v-else>
                     <button @click="startTournament" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-12 py-4 rounded-xl font-black text-xl hover:from-emerald-500 hover:to-teal-500 transition shadow-xl transform hover:scale-105 neon-glow-blue">🚀 隨機打亂並開始比賽</button>
                 </template>
             </template>
-            <p v-else class="text-emerald-400 text-lg font-bold mt-4 animate-pulse">📡 等待主控端開始或重置賽事...</p>
+            <p v-else class="text-emerald-400 text-lg font-bold mt-4 animate-pulse">📡 等待主控端開始賽事...</p>
         </div>
     </div>
 
@@ -227,12 +257,12 @@
                                     <div v-if="!match.isBye" class="absolute -top-2.5 left-2 bg-cyan-700 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-md z-10 border border-cyan-500">第 {{ match.matchNumber }} 場</div>
                                     <div class="flex justify-between items-center rounded px-2 py-1 mt-1" :class="{'bg-emerald-950/50 border border-emerald-800/50': match.player1Score > match.player2Score}">
                                         <span class="text-white font-bold text-sm truncate max-w-[130px]">{{ match.player1.name }}</span>
-                                        <input v-if="!match.isBye && !isSpectator" v-model.number="match.player1Score" @change="onScoreChange(match)" type="number" min="0" max="6" class="w-10 text-center bg-gray-800 text-cyan-300 border border-cyan-700 rounded font-black text-base h-8 outline-none focus:ring-1 focus:ring-cyan-400">
+                                        <input v-if="!match.isBye && !isSpectator" v-model.number="match.player1Score" @input="onScoreChange(match)" type="number" min="0" max="6" class="w-10 text-center bg-gray-800 text-cyan-300 border border-cyan-700 rounded font-black text-base h-8 outline-none focus:ring-1 focus:ring-cyan-400">
                                         <span v-else class="text-cyan-400 font-black text-base">{{ match.player1Score !== null ? match.player1Score : '-' }}</span>
                                     </div>
                                     <div v-if="!match.isBye" class="flex justify-between items-center rounded px-2 py-1" :class="{'bg-emerald-950/50 border border-emerald-800/50': match.player2Score > match.player1Score}">
                                         <span class="text-white font-bold text-sm truncate max-w-[130px]">{{ match.player2.name }}</span>
-                                        <input v-if="!match.isBye && !isSpectator" v-model.number="match.player2Score" @change="onScoreChange(match)" type="number" min="0" max="6" class="w-10 text-center bg-gray-800 text-cyan-300 border border-cyan-700 rounded font-black text-base h-8 outline-none focus:ring-1 focus:ring-cyan-400">
+                                        <input v-if="!match.isBye && !isSpectator" v-model.number="match.player2Score" @input="onScoreChange(match)" type="number" min="0" max="6" class="w-10 text-center bg-gray-800 text-cyan-300 border border-cyan-700 rounded font-black text-base h-8 outline-none focus:ring-1 focus:ring-cyan-400">
                                         <span v-else class="text-cyan-400 font-black text-base">{{ match.player2Score !== null ? match.player2Score : '-' }}</span>
                                     </div>
                                     <div v-else class="flex justify-between items-center px-2 py-1 text-slate-500 text-xs italic">
@@ -256,21 +286,12 @@
         <div v-if="tournamentMode === 'round_robin' || tournamentMode === 'super_round_robin'" class="bg-gray-950/80 rounded-2xl border border-gray-800/80 p-6 shadow-inner">
             <div :class="tournamentMode === 'super_round_robin' ? 'flex justify-center' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8'">
                 <div v-for="(group, gIdx) in rrGroups" :key="group.id" :class="tournamentMode === 'super_round_robin' ? 'w-full max-w-4xl' : ''" class="bg-gray-900/90 border border-gray-700 rounded-2xl shadow-xl flex flex-col p-4 relative overflow-hidden group">
-                    
-                    <!-- 標題與分組圖示指示器 (三角形/四角形) -->
                     <div class="text-center font-black mb-6 pb-2 border-b border-gray-700/50 flex flex-col items-center justify-center gap-1" :class="tournamentMode === 'super_round_robin' ? 'text-neon-purple text-xl' : 'text-neon-gold'">
                         <span>{{ tournamentMode === 'super_round_robin' ? '⚔️ 極限車輪戰' : 'GROUP ' + (gIdx + 1) }}</span>
                         <div v-if="tournamentMode === 'round_robin'" class="mt-1">
-                            <span v-if="group.players.length === 3" class="text-orange-400 bg-orange-950/60 px-2 py-0.5 rounded text-xs border border-orange-700/60 shadow-sm inline-flex items-center gap-1">
-                                <span>🔺</span> 三角組 (3人)
-                            </span>
-                            <span v-if="group.players.length === 4" class="text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded text-xs border border-cyan-700/60 shadow-sm inline-flex items-center gap-1">
-                                <span>🟦</span> 四角組 (4人)
-                            </span>
-                            <!-- 例外防呆顯示，防止異常數據 -->
-                            <span v-if="group.players.length !== 3 && group.players.length !== 4" class="text-gray-400 bg-gray-900/60 px-2 py-0.5 rounded text-xs border border-gray-700/60 shadow-sm inline-flex items-center gap-1">
-                                <span>⚪</span> {{ group.players.length }} 人組
-                            </span>
+                            <span v-if="group.players.length === 3" class="text-orange-400 bg-orange-950/60 px-2 py-0.5 rounded text-xs border border-orange-700/60 shadow-sm inline-flex items-center gap-1"><span>🔺</span> 三角組 (3人)</span>
+                            <span v-if="group.players.length === 4" class="text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded text-xs border border-cyan-700/60 shadow-sm inline-flex items-center gap-1"><span>🟦</span> 四角組 (4人)</span>
+                            <span v-if="group.players.length !== 3 && group.players.length !== 4" class="text-gray-400 bg-gray-900/60 px-2 py-0.5 rounded text-xs border border-gray-700/60 shadow-sm inline-flex items-center gap-1"><span>⚪</span> {{ group.players.length }} 人組</span>
                         </div>
                     </div>
 
@@ -281,13 +302,13 @@
                             </div>
                             <div class="flex flex-col items-center flex-1" :class="{'text-emerald-400': match.player1Score !== null && match.player1Score > match.player2Score, 'text-gray-400': match.player1Score === null || match.player1Score <= match.player2Score}">
                                 <span class="w-full text-center truncate px-1 text-xs font-bold mb-1">{{ match.player1.name }}</span>
-                                <input v-if="!isSpectator" v-model.number="match.player1Score" @change="onScoreChange()" type="number" min="0" max="6" class="w-12 text-center bg-gray-800 border border-gray-700 rounded h-8 outline-none focus:border-neon-gold focus:ring-1 focus:ring-neon-gold text-white font-black">
+                                <input v-if="!isSpectator" v-model.number="match.player1Score" @input="onScoreChange()" type="number" min="0" max="6" class="w-12 text-center bg-gray-800 border border-gray-700 rounded h-8 outline-none focus:border-neon-gold focus:ring-1 focus:ring-neon-gold text-white font-black">
                                 <span v-else class="font-black text-lg">{{ match.player1Score !== null ? match.player1Score : '-' }}</span>
                             </div>
                             <span class="text-gray-600 text-xs font-black px-2 shrink-0">VS</span>
                             <div class="flex flex-col items-center flex-1" :class="{'text-emerald-400': match.player2Score !== null && match.player2Score > match.player1Score, 'text-gray-400': match.player2Score === null || match.player2Score <= match.player1Score}">
                                 <span class="w-full text-center truncate px-1 text-xs font-bold mb-1">{{ match.player2.name }}</span>
-                                <input v-if="!isSpectator" v-model.number="match.player2Score" @change="onScoreChange()" type="number" min="0" max="6" class="w-12 text-center bg-gray-800 border border-gray-700 rounded h-8 outline-none focus:border-neon-gold focus:ring-1 focus:ring-neon-gold text-white font-black">
+                                <input v-if="!isSpectator" v-model.number="match.player2Score" @input="onScoreChange()" type="number" min="0" max="6" class="w-12 text-center bg-gray-800 border border-gray-700 rounded h-8 outline-none focus:border-neon-gold focus:ring-1 focus:ring-neon-gold text-white font-black">
                                 <span v-else class="font-black text-lg">{{ match.player2Score !== null ? match.player2Score : '-' }}</span>
                             </div>
                         </div>
@@ -344,178 +365,240 @@
 
         <!-- Start Bracket Decision Buttons -->
         <div v-if="status === 'swiss_finished' && !isSpectator" class="text-center pt-8 border-t border-gray-800/80 flex flex-col md:flex-row items-center justify-center gap-4">
-            <button v-if="sortedPlayers.length >= 8" @click="startBracket(8)" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-black text-lg hover:from-purple-500 hover:to-indigo-500 neon-glow-purple transition shadow-2xl transform hover:scale-105 w-full md:w-auto">🔥 取前 8 名：啟動 Top 8 決賽圈 (單淘汰)</button>
-            <button @click="startBracket(4)" class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-xl font-black text-lg hover:from-purple-500 hover:to-blue-500 neon-glow-purple transition shadow-2xl transform hover:scale-105 w-full md:w-auto">⚡ 取前 4 名：啟動 Top 4 決賽圈 (單淘汰)</button>
+            <button v-if="sortedPlayers.length >= 8" @click="startBracket(8)" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-black text-lg hover:from-purple-500 hover:to-indigo-500 neon-glow-purple transition shadow-2xl transform hover:scale-105 w-full md:w-auto">🔥 取積分前 8 名：啟動 Top 8 決賽圈 (淘汰制)</button>
+            <button v-if="sortedPlayers.length >= 4" @click="startBracket(4)" class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-xl font-black text-lg hover:from-purple-500 hover:to-blue-500 neon-glow-purple transition shadow-2xl transform hover:scale-105 w-full md:w-auto">⚡ 取積分前 4 名：啟動 Top 4 決賽圈 (淘汰制)</button>
         </div>
     </div>
 
-    <!-- Normal Bracket -->
-    <div v-if="status === 'bracket' || (status === 'champion_crowned' && tournamentMode !== 'redemption')" class="space-y-8 relative mt-6">
-        <div class="flex justify-between items-center bg-purple-950/80 border border-purple-700/80 text-neon-blue p-5 rounded-xl shadow-lg neon-glow-purple">
-            <h2 class="text-2xl font-black">👑 決賽圈賽程表 <span class="text-sm font-normal text-purple-300 ml-2 hidden md:inline">(可隨時點擊分數進行校正)</span></h2>
+    <!-- ★★★ 從下往上樹狀圖 (單淘汰 / 3v3 戰隊 / 初賽晉級決賽圈) ★★★ -->
+    <div v-if="['bracket', 'champion_crowned'].includes(status) && tournamentMode !== 'redemption'" class="space-y-4 relative mt-4">
+        
+        <div class="flex justify-center items-center mb-6">
+            <h2 class="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 drop-shadow-md py-2">
+                {{ tournamentMode === 'team_3v3' ? '⚔️ 3v3 戰隊單淘汰賽程表' : '👑 淘汰賽程樹狀圖' }}
+            </h2>
         </div>
 
-        <div class="space-y-4 relative">
-            <div class="overflow-x-auto p-4 bg-gray-950/80 border border-gray-800 rounded-xl relative custom-scrollbar">
-                <div class="min-w-[700px] flex justify-center gap-10 p-4 relative">
-                    <div v-for="(roundMatches, roundIndex) in bracketMatches" :key="roundIndex" class="flex flex-col justify-around gap-6 p-2 relative w-[280px] shrink-0 border-r border-gray-800/50 last:border-0">
-                        <div class="text-center text-slate-400 font-black mb-2 text-sm tracking-widest">{{ bracketRoundNames[roundIndex] }}</div>
-
-                        <!-- General Matches -->
-                        <div v-for="(match, matchIndex) in roundMatches" :key="match.id" :class="{'opacity-40 grayscale': roundIndex > currentBracketRoundIndex && status !== 'champion_crowned'}" class="border border-purple-700/60 bg-gray-900 rounded-xl px-4 pb-4 pt-5 flex flex-col items-center gap-3 relative shadow-lg transition my-auto mt-2">
-                            <div v-if="!match.isBye" class="absolute -top-3 left-3 bg-purple-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md z-10 border border-purple-400">
-                                {{ roundIndex === bracketMatches.length - 1 ? '最終戰' : '第' }} {{ match.matchNumber }} 場
-                            </div>
-                            
-                            <!-- P1 -->
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player1Score > match.player2Score}">
-                                <span class="text-xs text-slate-500 mb-1 font-bold">#{{ match.player1Seed || '-' }} 種子</span>
-                                <span class="font-black text-lg" :class="match.player1 ? 'text-white' : 'text-slate-500'">{{ match.player1 ? match.player1.name : (match.isBye ? '無對手 (Bye)' : 'TBD') }}</span>
-                                <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="match.player1Score" min="0" max="6" class="border border-purple-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-purple outline-none text-purple-400 text-xl mt-2">
-                                <div v-else-if="match.player1Score !== null" class="text-purple-400 font-black text-xl mt-2">{{ match.player1Score }}</div>
-                            </div>
-                            <span class="font-black text-purple-400 bg-gray-900 border border-purple-600 rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-md text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
-                            
-                            <!-- P2 -->
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player2Score > match.player1Score}">
-                                <span class="text-xs text-slate-500 mb-1 font-bold">#{{ match.player2Seed || '-' }} 種子</span>
-                                <span class="font-black text-lg" :class="match.player2 ? 'text-white' : 'text-slate-500'">{{ match.player2 ? match.player2.name : (match.isBye ? '自動輪空 (Bye)' : 'TBD') }}</span>
-                                <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="match.player2Score" min="0" max="6" class="border border-purple-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-purple outline-none text-purple-400 text-xl mt-2">
-                                <div v-else-if="match.player2Score !== null" class="text-purple-400 font-black text-xl mt-2">{{ match.player2Score }}</div>
-                            </div>
-                        </div>
-
-                        <!-- 季軍戰 -->
-                        <div v-if="roundIndex === bracketMatches.length - 1 && normalBronzeMatch" :class="{'opacity-40 grayscale': roundIndex > currentBracketRoundIndex && status !== 'champion_crowned'}" class="border-2 border-amber-700/60 bg-gray-900 rounded-xl px-4 pb-4 pt-5 flex flex-col items-center gap-3 relative shadow-[0_0_15px_rgba(245,158,11,0.15)] mt-8">
-                            <div v-if="!normalBronzeMatch.isBye" class="absolute -top-3 left-3 bg-amber-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md z-10 border border-amber-400">季軍戰 (第 {{ normalBronzeMatch.matchNumber }} 場)</div>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': normalBronzeMatch.player1Score > normalBronzeMatch.player2Score}">
-                                <span class="font-black text-lg" :class="normalBronzeMatch.player1 ? 'text-white' : 'text-slate-500'">{{ normalBronzeMatch.player1 ? normalBronzeMatch.player1.name : (normalBronzeMatch.isBye ? '無對手 (Bye)' : 'TBD') }}</span>
-                                <input v-if="normalBronzeMatch.player1 && normalBronzeMatch.player2 && !normalBronzeMatch.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="normalBronzeMatch.player1Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-gold outline-none text-amber-400 text-xl mt-2">
-                                <div v-else-if="normalBronzeMatch.player1Score !== null" class="text-amber-400 font-black text-xl mt-2">{{ normalBronzeMatch.player1Score }}</div>
-                            </div>
-                            <span class="font-black text-amber-500 bg-gray-900 border border-amber-600 rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-md text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': normalBronzeMatch.player2Score > normalBronzeMatch.player1Score}">
-                                <span class="font-black text-lg" :class="normalBronzeMatch.player2 ? 'text-white' : 'text-slate-500'">{{ normalBronzeMatch.player2 ? normalBronzeMatch.player2.name : (normalBronzeMatch.isBye ? '無對手 (Bye)' : 'TBD') }}</span>
-                                <input v-if="normalBronzeMatch.player1 && normalBronzeMatch.player2 && !normalBronzeMatch.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="normalBronzeMatch.player2Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-gold outline-none text-amber-400 text-xl mt-2">
-                                <div v-else-if="normalBronzeMatch.player2Score !== null" class="text-amber-400 font-black text-xl mt-2">{{ normalBronzeMatch.player2Score }}</div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
-            <div v-if="status !== 'champion_crowned' && !isSpectator" class="text-center pt-8">
-                <button @click="nextBracketRound" :disabled="!allBracketMatchesScored" :class="allBracketMatchesScored ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 neon-glow-purple' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'" class="text-white px-10 py-4 rounded-xl font-black transition w-full md:w-auto shadow-xl text-lg">
-                    {{ currentBracketRoundIndex < bracketMatches.length - 1 ? '確認當前賽果 ➔ 解鎖下一輪' : '🏆 確定賽果，揭曉最終名次！' }}
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mode 4: Redemption Bracket View -->
-    <div v-if="status === 'redemption_bracket' || (status === 'champion_crowned' && tournamentMode === 'redemption')" class="space-y-6 relative mt-6">
-        <div class="flex justify-between items-center bg-rose-950/80 border border-rose-700/80 text-rose-300 p-5 rounded-xl shadow-lg shadow-rose-900/50">
-            <h2 class="text-xl md:text-2xl font-black tracking-widest">⚔️ 敗部復活賽程表 <span class="text-sm font-normal text-rose-300 ml-2 hidden md:inline">(可隨時點擊分數進行校正)</span></h2>
-        </div>
-
-        <div class="w-full overflow-x-auto custom-scrollbar pb-8 pt-4 bg-gray-950/50 rounded-2xl border border-gray-800">
-            <div class="flex flex-nowrap items-stretch justify-center min-w-max gap-8 md:gap-16 px-8">
+        <div class="overflow-x-auto p-4 bg-gray-950/80 border border-gray-800 rounded-xl relative custom-scrollbar">
+            <!-- 採用 flex-col 搭配顛倒順序，呈現 頂部(決賽) 到 底部(初輪) 的樹狀圖視覺 -->
+            <div class="flex flex-col items-center w-full min-w-[800px] gap-0 py-8 relative">
                 
-                <!-- 勝者組 -->
-                <div class="flex gap-8">
-                    <div v-for="(round, rIdx) in wbMatches" :key="'wb'+rIdx" class="flex flex-col justify-around gap-6 w-[260px] shrink-0" :class="{'opacity-40 grayscale': rIdx > currentRedemptionPhase && status !== 'champion_crowned'}">
-                        <div class="text-center text-cyan-400 font-black mb-2 text-sm tracking-widest border-b border-cyan-800/50 pb-2">🔹 勝部 ROUND {{ rIdx + 1 }}</div>
-                        <div v-for="match in round" :key="match.id" class="border border-cyan-700/60 bg-gray-900 rounded-xl px-4 pb-4 pt-5 flex flex-col items-center gap-3 relative shadow-lg my-auto">
-                            <div v-if="!match.isBye" class="absolute -top-3 left-3 bg-cyan-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md z-10 border border-cyan-400">第 {{ match.matchNumber }} 場</div>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player1Score > match.player2Score}">
-                                <span class="font-black text-lg" :class="match.player1 ? 'text-white' : 'text-slate-500'">{{ match.player1 ? match.player1.name : (match.isBye ? '自動輪空 (Bye)' : 'TBD') }}</span>
-                                <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="match.player1Score" min="0" max="6" class="border border-cyan-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-blue outline-none text-cyan-400 text-xl mt-2">
-                                <div v-else-if="match.player1Score !== null" class="text-cyan-400 font-black text-xl mt-2">{{ match.player1Score }}</div>
-                            </div>
-                            <span class="font-black text-cyan-400 bg-gray-900 border border-cyan-600 rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-md text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player2Score > match.player1Score}">
-                                <span class="font-black text-lg" :class="match.player2 ? 'text-white' : 'text-slate-500'">{{ match.player2 ? match.player2.name : (match.isBye ? '自動輪空 (Bye)' : 'TBD') }}</span>
-                                <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="match.player2Score" min="0" max="6" class="border border-cyan-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-blue outline-none text-cyan-400 text-xl mt-2">
-                                <div v-else-if="match.player2Score !== null" class="text-cyan-400 font-black text-xl mt-2">{{ match.player2Score }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 總決賽區 -->
-                <div class="flex flex-col justify-center items-center gap-6 w-[320px] shrink-0 relative z-10 px-4">
-                    <h3 class="text-neon-gold text-xl md:text-2xl font-black tracking-widest drop-shadow-md text-center w-full border-b border-yellow-700/50 pb-2 mb-2">🏆 決賽區</h3>
+                <template v-for="(round, rIdx) in reversedBracketMatches" :key="'round_' + rIdx">
                     
-                    <div v-if="gfMatch" class="w-full flex flex-col gap-6" :class="{'opacity-40 grayscale': currentRedemptionPhase > wbMatches.length && status !== 'champion_crowned'}">
-                        <div class="border-2 border-yellow-500/80 bg-gray-900 rounded-xl px-4 pb-4 pt-6 flex flex-col items-center gap-4 relative shadow-[0_0_20px_rgba(234,179,8,0.4)]">
-                            <div v-if="!gfMatch.isBye" class="absolute -top-3 bg-yellow-600 text-gray-900 text-xs font-black px-3 py-1 rounded-lg shadow-md z-10 border border-yellow-400">最終戰 (第 {{ gfMatch.matchNumber }} 場)</div>
-                            <div class="w-full bg-gray-950/90 p-3 rounded-xl flex flex-col items-center border border-gray-700" :class="{'border-emerald-500 bg-emerald-950/40': gfMatch.player1Score > gfMatch.player2Score}">
-                                <span class="text-xs text-cyan-400 mb-1 font-bold tracking-widest">勝部冠軍</span>
-                                <span class="font-black text-xl text-white">{{ gfMatch.player1 ? gfMatch.player1.name : 'TBD' }}</span>
-                                <input v-if="gfMatch.player1 && gfMatch.player2 && !isSpectator" @change="onScoreChange()" type="number" v-model.number="gfMatch.player1Score" min="0" max="6" class="border border-yellow-600 bg-gray-900 p-2 rounded-lg w-20 text-center font-black focus:ring-2 focus:ring-neon-gold outline-none text-yellow-400 text-2xl mt-3">
-                                <div v-else-if="gfMatch.player1Score !== null" class="text-yellow-400 font-black text-3xl mt-3">{{ gfMatch.player1Score }}</div>
-                            </div>
-                            <span class="font-black text-yellow-500 bg-gray-900 border-2 border-yellow-600 rounded-full w-12 h-12 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(234,179,8,0.5)] text-sm z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
-                            <div class="w-full bg-gray-950/90 p-3 rounded-xl flex flex-col items-center border border-gray-700" :class="{'border-emerald-500 bg-emerald-950/40': gfMatch.player2Score > gfMatch.player1Score}">
-                                <span class="text-xs text-purple-400 mb-1 font-bold tracking-widest">敗部冠軍</span>
-                                <span class="font-black text-xl text-white">{{ gfMatch.player2 ? gfMatch.player2.name : 'TBD' }}</span>
-                                <input v-if="gfMatch.player1 && gfMatch.player2 && !isSpectator" @change="onScoreChange()" type="number" v-model.number="gfMatch.player2Score" min="0" max="6" class="border border-yellow-600 bg-gray-900 p-2 rounded-lg w-20 text-center font-black focus:ring-2 focus:ring-neon-gold outline-none text-yellow-400 text-2xl mt-3">
-                                <div v-else-if="gfMatch.player2Score !== null" class="text-yellow-400 font-black text-3xl mt-3">{{ gfMatch.player2Score }}</div>
+                    <div class="w-full text-center mb-2 mt-4 text-purple-400 font-black text-sm tracking-widest uppercase opacity-70">
+                        {{ reversedBracketRoundNames[rIdx] }}
+                    </div>
+
+                    <!-- 賽事列 -->
+                    <div class="flex w-full justify-around items-center relative z-10">
+                        <div v-for="match in round" :key="match.id" class="w-64 flex flex-col items-center justify-center relative transition-all" :class="{'opacity-40 grayscale': !match.player1 && !match.player2}">
+                            
+                            <div class="w-full bg-gray-900 border border-purple-700/60 rounded-xl p-4 flex flex-col items-center gap-3 shadow-lg relative">
+                                <div v-if="!match.isBye" class="absolute -top-3 left-3 bg-purple-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow z-10">第 {{ match.matchNumber }} 場</div>
+                                
+                                <!-- P1 -->
+                                <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player1Score > match.player2Score && match.player1Score !== null}">
+                                    <span class="font-black text-lg text-center truncate w-full" :class="match.player1 ? 'text-white' : 'text-slate-500'">
+                                        {{ match.player1 ? match.player1.name : (match.isBye ? '無對手 (Bye)' : 'TBD') }}
+                                        <span v-if="match.player1Seed" class="text-xs text-slate-400 ml-1">(#{{ match.player1Seed }})</span>
+                                    </span>
+                                    
+                                    <template v-if="tournamentMode !== 'team_3v3'">
+                                        <!-- 改為 @input 即時反應 -->
+                                        <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="match.player1Score" min="0" max="6" class="border border-purple-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black outline-none text-purple-400 text-xl mt-2 focus:ring-2 focus:ring-purple-400 transition-all">
+                                        <div v-else-if="match.player1Score !== null" class="text-purple-400 font-black text-xl mt-2">{{ match.player1Score }}</div>
+                                    </template>
+                                </div>
+                                
+                                <span v-if="tournamentMode !== 'team_3v3'" class="font-black text-purple-400 bg-gray-900 border border-purple-600 rounded-full w-8 h-8 flex items-center justify-center text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
+                                <span v-else class="font-black text-orange-500 bg-gray-900 border border-orange-600 rounded-full w-8 h-8 flex items-center justify-center text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1 shadow-[0_0_10px_rgba(249,115,22,0.5)]">VS</span>
+                                
+                                <!-- P2 -->
+                                <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player2Score > match.player1Score && match.player2Score !== null}">
+                                    <span class="font-black text-lg text-center truncate w-full" :class="match.player2 ? 'text-white' : 'text-slate-500'">
+                                        {{ match.player2 ? match.player2.name : (match.isBye ? '無對手 (Bye)' : 'TBD') }}
+                                        <span v-if="match.player2Seed" class="text-xs text-slate-400 ml-1">(#{{ match.player2Seed }})</span>
+                                    </span>
+                                    
+                                    <template v-if="tournamentMode !== 'team_3v3'">
+                                        <!-- 改為 @input 即時反應 -->
+                                        <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="match.player2Score" min="0" max="6" class="border border-purple-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black outline-none text-purple-400 text-xl mt-2 focus:ring-2 focus:ring-purple-400 transition-all">
+                                        <div v-else-if="match.player2Score !== null" class="text-purple-400 font-black text-xl mt-2">{{ match.player2Score }}</div>
+                                    </template>
+                                </div>
+
+                                <!-- 3v3 專屬按鈕 -->
+                                <div v-if="tournamentMode === 'team_3v3' && match.player1 && match.player2 && !match.isBye" class="w-full mt-2">
+                                    <button @click="open3v3Modal(match)" class="w-full bg-orange-950 border border-orange-600 text-orange-400 font-bold py-1.5 rounded hover:bg-orange-900 transition flex justify-center items-center gap-1 shadow-md">
+                                        <span>⚔️</span> {{ match.player1Score !== null && match.player2Score !== null ? '查看戰果' : '進入戰隊賽' }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="redemptionBronzeMatch" class="w-full flex flex-col gap-6 mt-4" :class="{'opacity-40 grayscale': currentRedemptionPhase > wbMatches.length && status !== 'champion_crowned'}">
-                        <div class="border-2 border-amber-700/60 bg-gray-900 rounded-xl px-4 pb-4 pt-5 flex flex-col items-center gap-3 relative shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                            <div v-if="!redemptionBronzeMatch.isBye" class="absolute -top-3 left-3 bg-amber-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md z-10 border border-amber-400">季軍戰 (第 {{ redemptionBronzeMatch.matchNumber }} 場)</div>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': redemptionBronzeMatch.player1Score > redemptionBronzeMatch.player2Score}">
-                                <span class="font-black text-lg" :class="redemptionBronzeMatch.player1 ? 'text-white' : 'text-slate-500'">{{ redemptionBronzeMatch.player1 ? redemptionBronzeMatch.player1.name : (redemptionBronzeMatch.isBye ? '無對手 (Bye)' : 'TBD') }}</span>
-                                <input v-if="redemptionBronzeMatch.player1 && redemptionBronzeMatch.player2 && !redemptionBronzeMatch.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="redemptionBronzeMatch.player1Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-gold outline-none text-amber-400 text-xl mt-2">
-                                <div v-else-if="redemptionBronzeMatch.player1Score !== null" class="text-amber-400 font-black text-xl mt-2">{{ redemptionBronzeMatch.player1Score }}</div>
-                            </div>
-                            <span class="font-black text-amber-500 bg-gray-900 border border-amber-600 rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-md text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': redemptionBronzeMatch.player2Score > redemptionBronzeMatch.player1Score}">
-                                <span class="font-black text-lg" :class="redemptionBronzeMatch.player2 ? 'text-white' : 'text-slate-500'">{{ redemptionBronzeMatch.player2 ? redemptionBronzeMatch.player2.name : (redemptionBronzeMatch.isBye ? '無對手 (Bye)' : 'TBD') }}</span>
-                                <input v-if="redemptionBronzeMatch.player1 && redemptionBronzeMatch.player2 && !redemptionBronzeMatch.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="redemptionBronzeMatch.player2Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-gold outline-none text-amber-400 text-xl mt-2">
-                                <div v-else-if="redemptionBronzeMatch.player2Score !== null" class="text-amber-400 font-black text-xl mt-2">{{ redemptionBronzeMatch.player2Score }}</div>
-                            </div>
+                    <!-- CSS 繪製分支線 -->
+                    <div v-if="rIdx < reversedBracketMatches.length - 1" class="flex w-full justify-around h-10 mt-1 mb-1 relative z-0">
+                        <div v-for="match in round" :key="'conn_' + match.id" class="flex flex-col items-center w-full">
+                            <div class="w-[2px] h-3 bg-purple-600/60"></div>
+                            <div class="w-[50%] h-7 border-t-[2px] border-r-[2px] border-l-[2px] border-purple-600/60 rounded-t-lg"></div>
                         </div>
                     </div>
-                </div>
-
-                <!-- 敗者組 -->
-                <div class="flex flex-row-reverse gap-8">
-                    <div v-for="(round, rIdx) in lbMatches" :key="'lb'+rIdx" class="flex flex-col justify-around gap-6 w-[260px] shrink-0" :class="{'opacity-40 grayscale': rIdx > currentRedemptionPhase - 1 && status !== 'champion_crowned'}">
-                        <div class="text-center text-purple-400 font-black mb-2 text-sm tracking-widest border-b border-purple-800/50 pb-2">🔸 敗部 ROUND {{ rIdx + 1 }}</div>
-                        <div v-for="match in round" :key="match.id" class="border border-purple-700/60 bg-gray-900 rounded-xl px-4 pb-4 pt-5 flex flex-col items-center gap-3 relative shadow-lg my-auto">
-                            <div v-if="!match.isBye" class="absolute -top-3 left-3 bg-purple-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md z-10 border border-purple-400">第 {{ match.matchNumber }} 場</div>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player1Score > match.player2Score}">
-                                <span class="font-black text-lg" :class="match.player1 ? 'text-white' : 'text-slate-500'">{{ match.player1 ? match.player1.name : (match.isBye ? '自動輪空 (Bye)' : 'TBD') }}</span>
-                                <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="match.player1Score" min="0" max="6" class="border border-purple-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-purple outline-none text-purple-400 text-xl mt-2">
-                                <div v-else-if="match.player1Score !== null" class="text-purple-400 font-black text-xl mt-2">{{ match.player1Score }}</div>
-                            </div>
-                            <span class="font-black text-purple-400 bg-gray-900 border border-purple-600 rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-md text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
-                            <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': match.player2Score > match.player1Score}">
-                                <span class="font-black text-lg" :class="match.player2 ? 'text-white' : 'text-slate-500'">{{ match.player2 ? match.player2.name : (match.isBye ? '自動輪空 (Bye)' : 'TBD') }}</span>
-                                <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @change="onScoreChange()" type="number" v-model.number="match.player2Score" min="0" max="6" class="border border-purple-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black focus:ring-2 focus:ring-neon-purple outline-none text-purple-400 text-xl mt-2">
-                                <div v-else-if="match.player2Score !== null" class="text-purple-400 font-black text-xl mt-2">{{ match.player2Score }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                </template>
+                
             </div>
-        </div>
 
-        <div v-if="status !== 'champion_crowned' && !isSpectator" class="text-center pt-6 border-t border-gray-800/80 mt-6">
-            <button @click="nextRedemptionPhase" :disabled="!canProgressRedemption" :class="canProgressRedemption ? 'bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 transform hover:scale-105 shadow-[0_0_15px_rgba(225,29,72,0.4)]' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'" class="text-white px-10 py-4 rounded-xl font-black transition w-full md:w-auto text-lg shadow-lg">
-                {{ currentRedemptionPhase < wbMatches.length ? '確認當前賽果 ➔ 解鎖下一輪' : '🏆 確定賽果，揭曉最終名次！' }}
-            </button>
+            <!-- 季軍戰 (獨立放置於底部或側邊) -->
+            <div v-if="normalBronzeMatch && status !== 'setup'" class="flex justify-center mt-12 mb-4">
+                <div class="w-64 border-2 border-amber-700/60 bg-gray-900 rounded-xl p-4 flex flex-col items-center gap-3 relative shadow-[0_0_15px_rgba(245,158,11,0.15)]" :class="{'opacity-40 grayscale': !normalBronzeMatch.player1 && !normalBronzeMatch.player2}">
+                    <div v-if="!normalBronzeMatch.isBye" class="absolute -top-3 left-3 bg-amber-600 text-white text-[11px] font-black px-2 py-0.5 rounded shadow z-10">季軍戰 (第 {{ normalBronzeMatch.matchNumber }} 場)</div>
+                    <!-- P1 -->
+                    <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': normalBronzeMatch.player1Score > normalBronzeMatch.player2Score && normalBronzeMatch.player1Score !== null}">
+                        <span class="font-black text-lg truncate w-full text-center" :class="normalBronzeMatch.player1 ? 'text-white' : 'text-slate-500'">{{ normalBronzeMatch.player1 ? normalBronzeMatch.player1.name : 'TBD' }}</span>
+                        <template v-if="tournamentMode !== 'team_3v3'">
+                            <input v-if="normalBronzeMatch.player1 && normalBronzeMatch.player2 && !normalBronzeMatch.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="normalBronzeMatch.player1Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black outline-none text-amber-400 text-xl mt-2 focus:ring-2 focus:ring-amber-400 transition-all">
+                            <div v-else-if="normalBronzeMatch.player1Score !== null" class="text-amber-400 font-black text-xl mt-2">{{ normalBronzeMatch.player1Score }}</div>
+                        </template>
+                    </div>
+                    <span class="font-black text-amber-500 bg-gray-900 border border-amber-600 rounded-full w-8 h-8 flex items-center justify-center text-xs z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
+                    <!-- P2 -->
+                    <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': normalBronzeMatch.player2Score > normalBronzeMatch.player1Score && normalBronzeMatch.player2Score !== null}">
+                        <span class="font-black text-lg truncate w-full text-center" :class="normalBronzeMatch.player2 ? 'text-white' : 'text-slate-500'">{{ normalBronzeMatch.player2 ? normalBronzeMatch.player2.name : 'TBD' }}</span>
+                        <template v-if="tournamentMode !== 'team_3v3'">
+                            <input v-if="normalBronzeMatch.player1 && normalBronzeMatch.player2 && !normalBronzeMatch.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="normalBronzeMatch.player2Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1.5 rounded w-16 text-center font-black outline-none text-amber-400 text-xl mt-2 focus:ring-2 focus:ring-amber-400 transition-all">
+                            <div v-else-if="normalBronzeMatch.player2Score !== null" class="text-amber-400 font-black text-xl mt-2">{{ normalBronzeMatch.player2Score }}</div>
+                        </template>
+                    </div>
+                    <!-- 3v3 專屬按鈕 -->
+                    <div v-if="tournamentMode === 'team_3v3' && normalBronzeMatch.player1 && normalBronzeMatch.player2 && !normalBronzeMatch.isBye" class="w-full mt-2">
+                        <button @click="open3v3Modal(normalBronzeMatch)" class="w-full bg-amber-950 border border-amber-600 text-amber-400 font-bold py-1.5 rounded hover:bg-amber-900 transition flex justify-center items-center gap-1 shadow-md">
+                            <span>⚔️</span> {{ normalBronzeMatch.player1Score !== null && normalBronzeMatch.player2Score !== null ? '查看戰果' : '季軍戰隊賽' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- 冠亞季殿名單結算畫面 -->
+    <!-- 敗部復活從下往上樹狀圖 -->
+    <div v-if="status === 'redemption_bracket' || (status === 'champion_crowned' && tournamentMode === 'redemption')" class="space-y-6 relative mt-6">
+        <div class="flex justify-center items-center mb-6">
+            <h2 class="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-red-500 drop-shadow-md py-2">⚔️ 敗部復活樹狀圖</h2>
+        </div>
+
+        <div class="w-full overflow-x-auto custom-scrollbar pb-8 bg-gray-950/50 rounded-2xl border border-gray-800 relative flex flex-col items-center">
+            
+            <!-- 總決賽區 (置頂) -->
+            <div class="flex flex-col items-center w-full py-8 bg-black/40 border-b border-gray-800">
+                <h3 class="text-neon-gold text-xl font-black tracking-widest drop-shadow-md text-center mb-4">🏆 總決賽區</h3>
+                
+                <div class="flex gap-8 justify-center w-full">
+                    <!-- Grand Final -->
+                    <div v-if="gfMatch" class="w-64 border-2 border-yellow-500/80 bg-gray-900 rounded-xl p-4 flex flex-col items-center gap-3 relative shadow-[0_0_20px_rgba(234,179,8,0.4)]" :class="{'opacity-40 grayscale': !gfMatch.player1 && !gfMatch.player2}">
+                        <div v-if="!gfMatch.isBye" class="absolute -top-3 bg-yellow-600 text-gray-900 text-[10px] font-black px-2 py-0.5 rounded shadow z-10">最終戰 (第 {{ gfMatch.matchNumber }} 場)</div>
+                        <div class="w-full bg-gray-950/90 p-2.5 rounded-lg flex flex-col items-center border border-gray-700" :class="{'border-emerald-500 bg-emerald-950/40': gfMatch.player1Score > gfMatch.player2Score && gfMatch.player1Score !== null}">
+                            <span class="text-[10px] text-cyan-400 font-bold mb-1">勝部冠軍</span>
+                            <span class="font-black text-lg text-white truncate">{{ gfMatch.player1 ? gfMatch.player1.name : 'TBD' }}</span>
+                            <input v-if="gfMatch.player1 && gfMatch.player2 && !isSpectator" @input="onScoreChange()" type="number" v-model.number="gfMatch.player1Score" min="0" max="6" class="border border-yellow-600 bg-gray-900 p-1 rounded w-16 text-center font-black outline-none text-yellow-400 text-lg mt-1 focus:ring-2 focus:ring-yellow-400 transition-all">
+                            <div v-else-if="gfMatch.player1Score !== null" class="text-yellow-400 font-black text-lg mt-1">{{ gfMatch.player1Score }}</div>
+                        </div>
+                        <span class="font-black text-yellow-500 bg-gray-900 border border-yellow-600 rounded-full w-6 h-6 flex items-center justify-center text-[10px] z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
+                        <div class="w-full bg-gray-950/90 p-2.5 rounded-lg flex flex-col items-center border border-gray-700" :class="{'border-emerald-500 bg-emerald-950/40': gfMatch.player2Score > gfMatch.player1Score && gfMatch.player2Score !== null}">
+                            <span class="text-[10px] text-purple-400 font-bold mb-1">敗部冠軍</span>
+                            <span class="font-black text-lg text-white truncate">{{ gfMatch.player2 ? gfMatch.player2.name : 'TBD' }}</span>
+                            <input v-if="gfMatch.player1 && gfMatch.player2 && !isSpectator" @input="onScoreChange()" type="number" v-model.number="gfMatch.player2Score" min="0" max="6" class="border border-yellow-600 bg-gray-900 p-1 rounded w-16 text-center font-black outline-none text-yellow-400 text-lg mt-1 focus:ring-2 focus:ring-yellow-400 transition-all">
+                            <div v-else-if="gfMatch.player2Score !== null" class="text-yellow-400 font-black text-lg mt-1">{{ gfMatch.player2Score }}</div>
+                        </div>
+                    </div>
+
+                    <!-- 敗部季軍戰 -->
+                    <div v-if="redemptionBronzeMatch" class="w-64 border-2 border-amber-700/60 bg-gray-900 rounded-xl p-4 flex flex-col items-center gap-3 relative shadow-[0_0_15px_rgba(245,158,11,0.15)]" :class="{'opacity-40 grayscale': !redemptionBronzeMatch.player1 && !redemptionBronzeMatch.player2}">
+                        <div v-if="!redemptionBronzeMatch.isBye" class="absolute -top-3 bg-amber-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow z-10">季軍戰 (第 {{ redemptionBronzeMatch.matchNumber }} 場)</div>
+                        <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': redemptionBronzeMatch.player1Score > redemptionBronzeMatch.player2Score && redemptionBronzeMatch.player1Score !== null}">
+                            <span class="font-black text-lg text-white truncate">{{ redemptionBronzeMatch.player1 ? redemptionBronzeMatch.player1.name : 'TBD' }}</span>
+                            <input v-if="redemptionBronzeMatch.player1 && redemptionBronzeMatch.player2 && !isSpectator" @input="onScoreChange()" type="number" v-model.number="redemptionBronzeMatch.player1Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1 rounded w-16 text-center font-black outline-none text-amber-400 text-lg mt-1 focus:ring-2 focus:ring-amber-400 transition-all">
+                            <div v-else-if="redemptionBronzeMatch.player1Score !== null" class="text-amber-400 font-black text-lg mt-1">{{ redemptionBronzeMatch.player1Score }}</div>
+                        </div>
+                        <span class="font-black text-amber-500 bg-gray-900 border border-amber-600 rounded-full w-6 h-6 flex items-center justify-center text-[10px] z-10 absolute top-1/2 transform -translate-y-1/2 mt-1">VS</span>
+                        <div class="w-full bg-gray-950/80 p-2.5 rounded-lg flex flex-col items-center border border-gray-800" :class="{'border-emerald-500/80 bg-emerald-950/30': redemptionBronzeMatch.player2Score > redemptionBronzeMatch.player1Score && redemptionBronzeMatch.player2Score !== null}">
+                            <span class="font-black text-lg text-white truncate">{{ redemptionBronzeMatch.player2 ? redemptionBronzeMatch.player2.name : 'TBD' }}</span>
+                            <input v-if="redemptionBronzeMatch.player1 && redemptionBronzeMatch.player2 && !isSpectator" @input="onScoreChange()" type="number" v-model.number="redemptionBronzeMatch.player2Score" min="0" max="6" class="border border-amber-600 bg-gray-900 p-1 rounded w-16 text-center font-black outline-none text-amber-400 text-lg mt-1 focus:ring-2 focus:ring-amber-400 transition-all">
+                            <div v-else-if="redemptionBronzeMatch.player2Score !== null" class="text-amber-400 font-black text-lg mt-1">{{ redemptionBronzeMatch.player2Score }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 平行的底部往上佈局 -->
+            <div class="flex flex-col md:flex-row w-full gap-8 justify-around pt-8 px-4 items-end">
+                <!-- 勝者組 (WB) 底層向上 -->
+                <div class="flex flex-col items-center min-w-[300px]">
+                    <h3 class="text-cyan-400 font-black tracking-widest border-b border-cyan-800/50 pb-2 mb-6 uppercase w-full text-center">🔹 勝部賽程</h3>
+                    <div class="flex flex-col items-center w-full gap-0">
+                        <template v-for="(round, rIdx) in reversedWbMatches" :key="'wb_'+rIdx">
+                            <div class="w-full text-center mb-1 mt-2 text-cyan-600 font-bold text-xs uppercase opacity-70">Round {{ wbMatches.length - rIdx }}</div>
+                            <div class="flex w-full justify-around items-center relative z-10">
+                                <div v-for="match in round" :key="match.id" class="w-48 flex flex-col items-center justify-center relative bg-gray-900 border border-cyan-700/60 rounded-xl p-3 shadow-lg my-1" :class="{'opacity-40 grayscale': !match.player1 && !match.player2}">
+                                    <div v-if="!match.isBye" class="absolute -top-2 left-2 bg-cyan-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow z-10">第 {{ match.matchNumber }} 場</div>
+                                    <div class="w-full bg-gray-950/80 p-1.5 rounded flex flex-col items-center" :class="{'border border-emerald-500/80 bg-emerald-950/30': match.player1Score > match.player2Score && match.player1Score !== null}">
+                                        <span class="font-bold text-sm truncate w-full text-center" :class="match.player1 ? 'text-white' : 'text-slate-500'">{{ match.player1 ? match.player1.name : 'TBD' }}</span>
+                                        <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="match.player1Score" min="0" max="6" class="bg-gray-900 rounded w-10 text-center font-bold text-cyan-400 mt-1 h-6 outline-none border border-cyan-700 focus:ring-1 focus:ring-cyan-400 transition-all">
+                                        <div v-else-if="match.player1Score !== null" class="text-cyan-400 font-bold text-sm mt-1">{{ match.player1Score }}</div>
+                                    </div>
+                                    <div class="w-full bg-gray-950/80 p-1.5 rounded flex flex-col items-center mt-2" :class="{'border border-emerald-500/80 bg-emerald-950/30': match.player2Score > match.player1Score && match.player2Score !== null}">
+                                        <span class="font-bold text-sm truncate w-full text-center" :class="match.player2 ? 'text-white' : 'text-slate-500'">{{ match.player2 ? match.player2.name : 'TBD' }}</span>
+                                        <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="match.player2Score" min="0" max="6" class="bg-gray-900 rounded w-10 text-center font-bold text-cyan-400 mt-1 h-6 outline-none border border-cyan-700 focus:ring-1 focus:ring-cyan-400 transition-all">
+                                        <div v-else-if="match.player2Score !== null" class="text-cyan-400 font-bold text-sm mt-1">{{ match.player2Score }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="rIdx < reversedWbMatches.length - 1" class="flex w-full justify-around h-6 relative z-0">
+                                <div v-for="match in round" class="flex flex-col items-center w-full">
+                                    <div class="w-[2px] h-2 bg-cyan-600/40"></div>
+                                    <div class="w-[50%] h-4 border-t-[2px] border-r-[2px] border-l-[2px] border-cyan-600/40 rounded-t-sm"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 敗者組 (LB) 底層向上 -->
+                <div class="flex flex-col items-center min-w-[300px]">
+                    <h3 class="text-purple-400 font-black tracking-widest border-b border-purple-800/50 pb-2 mb-6 uppercase w-full text-center">🔸 敗部賽程</h3>
+                    <div class="flex flex-col items-center w-full gap-0">
+                        <template v-for="(round, rIdx) in reversedLbMatches" :key="'lb_'+rIdx">
+                            <div class="w-full text-center mb-1 mt-2 text-purple-600 font-bold text-xs uppercase opacity-70">Round {{ lbMatches.length - rIdx }}</div>
+                            <div class="flex w-full justify-around items-center relative z-10">
+                                <div v-for="match in round" :key="match.id" class="w-48 flex flex-col items-center justify-center relative bg-gray-900 border border-purple-700/60 rounded-xl p-3 shadow-lg my-1" :class="{'opacity-40 grayscale': !match.player1 && !match.player2}">
+                                    <div v-if="!match.isBye" class="absolute -top-2 left-2 bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow z-10">第 {{ match.matchNumber }} 場</div>
+                                    <div class="w-full bg-gray-950/80 p-1.5 rounded flex flex-col items-center" :class="{'border border-emerald-500/80 bg-emerald-950/30': match.player1Score > match.player2Score && match.player1Score !== null}">
+                                        <span class="font-bold text-sm truncate w-full text-center" :class="match.player1 ? 'text-white' : 'text-slate-500'">{{ match.player1 ? match.player1.name : 'TBD' }}</span>
+                                        <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="match.player1Score" min="0" max="6" class="bg-gray-900 rounded w-10 text-center font-bold text-purple-400 mt-1 h-6 outline-none border border-purple-700 focus:ring-1 focus:ring-purple-400 transition-all">
+                                        <div v-else-if="match.player1Score !== null" class="text-purple-400 font-bold text-sm mt-1">{{ match.player1Score }}</div>
+                                    </div>
+                                    <div class="w-full bg-gray-950/80 p-1.5 rounded flex flex-col items-center mt-2" :class="{'border border-emerald-500/80 bg-emerald-950/30': match.player2Score > match.player1Score && match.player2Score !== null}">
+                                        <span class="font-bold text-sm truncate w-full text-center" :class="match.player2 ? 'text-white' : 'text-slate-500'">{{ match.player2 ? match.player2.name : 'TBD' }}</span>
+                                        <input v-if="match.player1 && match.player2 && !match.isBye && !isSpectator" @input="onScoreChange()" type="number" v-model.number="match.player2Score" min="0" max="6" class="bg-gray-900 rounded w-10 text-center font-bold text-purple-400 mt-1 h-6 outline-none border border-purple-700 focus:ring-1 focus:ring-purple-400 transition-all">
+                                        <div v-else-if="match.player2Score !== null" class="text-purple-400 font-bold text-sm mt-1">{{ match.player2Score }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="rIdx < reversedLbMatches.length - 1" class="flex w-full justify-around h-6 relative z-0">
+                                <div v-for="match in round" class="flex flex-col items-center w-full">
+                                    <div class="w-[2px] h-full bg-purple-600/40"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 自動彈出的 冠亞季殿名單結算畫面 -->
+    <transition name="fade">
     <div v-if="status === 'champion_crowned'" class="space-y-6 relative z-10 w-full mt-8 border-t-2 border-dashed border-gray-700 pt-8">
         <!-- 冠軍 -->
         <div class="text-center bg-gray-900/90 border border-neon-gold p-10 rounded-2xl shadow-2xl transform transition-all duration-500 hover:scale-[1.02] neon-glow-gold relative overflow-hidden">
@@ -535,7 +618,7 @@
                 <div class="text-5xl mb-2 drop-shadow-md">🥈</div>
                 <h3 class="text-gray-400 font-black tracking-widest mb-2 text-lg">亞軍 (2nd)</h3>
                 <p class="text-3xl font-bold text-white mb-3">{{ finalRunnerUp ? finalRunnerUp.name : '-' }}</p>
-                <div v-if="finalRunnerUp" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full">
+                <div v-if="finalRunnerUp" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full mt-auto">
                     <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-gray-300">得: {{ finalRunnerUp.totalPoints }}</span>
                     <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-gray-400">失: {{ finalRunnerUp.pointsAgainst }}</span>
                     <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalRunnerUp.totalPoints - finalRunnerUp.pointsAgainst) > 0">+</span>{{ finalRunnerUp.totalPoints - finalRunnerUp.pointsAgainst }}</span>
@@ -546,7 +629,7 @@
                 <div class="text-5xl mb-2 drop-shadow-md">🥉</div>
                 <h3 class="text-amber-600 font-black tracking-widest mb-2 text-lg">季軍 (3rd)</h3>
                 <p class="text-3xl font-bold text-white mb-3">{{ finalThird ? finalThird.name : '-' }}</p>
-                <div v-if="finalThird" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full">
+                <div v-if="finalThird" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full mt-auto">
                     <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-amber-400">得: {{ finalThird.totalPoints }}</span>
                     <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-amber-500">失: {{ finalThird.pointsAgainst }}</span>
                     <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalThird.totalPoints - finalThird.pointsAgainst) > 0">+</span>{{ finalThird.totalPoints - finalThird.pointsAgainst }}</span>
@@ -557,7 +640,7 @@
                 <div class="text-5xl mb-2 drop-shadow-md">🏅</div>
                 <h3 class="text-blue-500 font-black tracking-widest mb-2 text-lg">殿軍 (4th)</h3>
                 <p class="text-3xl font-bold text-white mb-3">{{ finalFourth ? finalFourth.name : '-' }}</p>
-                <div v-if="finalFourth" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full">
+                <div v-if="finalFourth" class="flex flex-wrap gap-2 justify-center text-xs font-bold w-full mt-auto">
                     <span class="bg-black/30 border border-blue-800/50 px-2 py-1 rounded text-blue-300">得: {{ finalFourth.totalPoints }}</span>
                     <span class="bg-black/30 border border-blue-800/50 px-2 py-1 rounded text-blue-400">失: {{ finalFourth.pointsAgainst }}</span>
                     <span class="bg-black/30 border border-blue-800/50 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalFourth.totalPoints - finalFourth.pointsAgainst) > 0">+</span>{{ finalFourth.totalPoints - finalFourth.pointsAgainst }}</span>
@@ -565,47 +648,40 @@
             </div>
         </div>
 
-        <!-- 全體數據 -->
+        <!-- 全體數據紀錄表 -->
         <div class="mt-12 bg-gray-900/90 border border-gray-700 rounded-2xl shadow-2xl p-6 md:p-8 relative">
-            <h3 class="text-2xl font-black text-neon-blue mb-6 flex items-center gap-3 border-b border-gray-700 pb-3">📊 全體選手最終數據與全賽程紀錄</h3>
-            
+            <h3 class="text-2xl font-black text-neon-blue mb-6 border-b border-gray-700 pb-3">📊 全體最終數據與全賽程紀錄</h3>
             <div class="mb-8">
-                <h4 class="text-lg font-bold text-gray-300 mb-3 pl-2 border-l-4 border-emerald-500">🏆 選手總結算榜</h4>
+                <h4 class="text-lg font-bold text-gray-300 mb-3 pl-2 border-l-4 border-emerald-500">🏆 總結算榜</h4>
                 <div class="overflow-x-auto bg-gray-950 rounded-xl border border-gray-800 custom-scrollbar">
-                    <table class="w-full text-left border-collapse text-sm md:text-base whitespace-nowrap">
+                    <table class="w-full text-left border-collapse text-sm whitespace-nowrap">
                         <thead>
                             <tr class="bg-gray-800 text-gray-400">
                                 <th class="p-3 text-center w-16">名次</th>
-                                <th class="p-3">選手名稱</th>
+                                <th class="p-3">名稱</th>
                                 <th class="p-3 text-center text-emerald-400">總得分</th>
                                 <th class="p-3 text-center text-rose-400">總失分</th>
-                                <th class="p-3 text-center text-purple-400">淨分差</th>
-                                <th class="p-3 text-center">總出賽場數</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="(player, index) in finalPlayerStats" :key="player.id" class="border-b border-gray-800/60 hover:bg-gray-800/40 transition">
                                 <td class="p-3 text-center font-black">
-                                    <span v-if="index === 0" class="text-yellow-400 text-xl">🥇</span>
-                                    <span v-else-if="index === 1" class="text-gray-300 text-xl">🥈</span>
-                                    <span v-else-if="index === 2" class="text-amber-600 text-xl">🥉</span>
+                                    <span v-if="index === 0" class="text-yellow-400 text-lg">🥇</span>
+                                    <span v-else-if="index === 1" class="text-gray-300 text-lg">🥈</span>
+                                    <span v-else-if="index === 2" class="text-amber-600 text-lg">🥉</span>
                                     <span v-else-if="index === 3" class="text-blue-400 text-lg">🏅</span>
                                     <span v-else class="text-slate-500">#{{ index + 1 }}</span>
                                 </td>
                                 <td class="p-3 font-bold text-white">{{ player.name }}</td>
                                 <td class="p-3 text-center font-black text-emerald-300">{{ player.totalPoints }}</td>
                                 <td class="p-3 text-center font-black text-rose-300">{{ player.pointsAgainst }}</td>
-                                <td class="p-3 text-center font-black text-purple-300 bg-purple-950/10">
-                                    <span v-if="(player.totalPoints - player.pointsAgainst) > 0">+</span>{{ player.totalPoints - player.pointsAgainst }}
-                                </td>
-                                <td class="p-3 text-center font-bold text-gray-400">{{ player.played }} 場</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-
-            <div>
+            
+            <div v-if="tournamentMode !== 'team_3v3'">
                 <h4 class="text-lg font-bold text-gray-300 mb-3 pl-2 border-l-4 border-cyan-500">📝 全賽程對戰日誌</h4>
                 <div class="overflow-x-auto bg-gray-950 rounded-xl border border-gray-800 custom-scrollbar max-h-[400px]">
                     <table class="w-full text-left border-collapse text-sm whitespace-nowrap">
@@ -620,13 +696,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="log in matchHistoryLog" :key="log.number" class="border-b border-gray-800/60 hover:bg-gray-800/40 transition">
+                            <tr v-for="log in matchHistoryLog" :key="log.number" class="border-b border-gray-800/60 hover:bg-gray-800/40">
                                 <td class="p-3 text-center font-black text-cyan-500">#{{ log.number }}</td>
                                 <td class="p-3 text-center text-xs text-gray-400 bg-gray-900/50">{{ log.stage }}</td>
                                 <td class="p-3 text-right font-bold" :class="log.winner === log.p1 ? 'text-emerald-400' : 'text-gray-500'">{{ log.p1 }}</td>
                                 <td class="p-3 text-center font-black tracking-widest bg-black/20 rounded-lg">
-                                    <span :class="log.s1 > log.s2 ? 'text-emerald-400' : 'text-rose-400'">{{ log.s1 }}</span>
-                                    <span class="text-gray-600 mx-1">:</span>
+                                    <span :class="log.s1 > log.s2 ? 'text-emerald-400' : 'text-rose-400'">{{ log.s1 }}</span> : 
                                     <span :class="log.s2 > log.s1 ? 'text-emerald-400' : 'text-rose-400'">{{ log.s2 }}</span>
                                 </td>
                                 <td class="p-3 text-left font-bold" :class="log.winner === log.p2 ? 'text-emerald-400' : 'text-gray-500'">{{ log.p2 }}</td>
@@ -635,6 +710,79 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+    </transition>
+
+    <!-- ★★★ 3v3 KOF 戰鬥面板 (Modal) ★★★ -->
+    <div v-if="active3v3Match" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
+        <div class="bg-gray-900 border border-orange-500 rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-[0_0_40px_rgba(249,115,22,0.4)] flex flex-col max-h-[90vh]">
+            <h3 class="text-2xl md:text-3xl font-black text-center text-orange-400 mb-2">⚔️ 3v3 戰隊賽交鋒 ⚔️</h3>
+            <p class="text-center text-gray-400 text-sm mb-6">請分別勾選雙方存活隊員，輸入比分後確認。敗者將遭到淘汰(反灰)。</p>
+            
+            <div class="flex flex-col md:flex-row justify-between gap-6 flex-1 overflow-hidden">
+                <!-- Team 1 -->
+                <div class="flex-1 bg-gray-950 p-4 rounded-xl border" :class="t1AllDead ? 'border-red-900 opacity-60 grayscale' : 'border-emerald-600'">
+                    <h4 class="text-xl font-black text-emerald-400 mb-4 text-center border-b border-gray-700 pb-2">🛡️ {{ active3v3Match.player1.name }}</h4>
+                    <div class="space-y-3">
+                        <label v-for="(member, idx) in active3v3Match.t1State" :key="idx" class="flex items-center gap-3 p-3 rounded-lg border transition cursor-pointer" :class="member.alive ? (selectedT1Member === member ? 'bg-emerald-950/60 border-emerald-500' : 'bg-gray-900 border-gray-700 hover:border-gray-500') : 'bg-red-950/30 border-red-900/50 opacity-40 grayscale cursor-not-allowed'">
+                            <input type="radio" :value="member" v-model="selectedT1Member" :disabled="!member.alive || isSpectator" class="w-5 h-5 accent-emerald-500">
+                            <span class="font-bold text-lg" :class="!member.alive ? 'line-through text-red-500' : 'text-white'">{{ member.name }}</span>
+                            <span v-if="!member.alive" class="ml-auto text-xs bg-red-900 text-white px-2 py-1 rounded">已陣亡</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 戰鬥區域 -->
+                <div class="flex flex-col items-center justify-center shrink-0 w-full md:w-auto">
+                    <div class="text-4xl font-black text-orange-500 mb-4 drop-shadow-md">VS</div>
+                    
+                    <div v-if="!isSpectator && !t1AllDead && !t2AllDead" class="bg-gray-800 p-4 rounded-xl border border-gray-600 w-full md:w-64">
+                        <div class="text-center text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest">當前對戰比分</div>
+                        <div class="flex items-center justify-center gap-3">
+                            <input type="number" v-model.number="t1BoutScore" min="0" max="6" class="w-16 h-12 text-center text-2xl font-black bg-gray-950 border border-emerald-500 text-emerald-400 rounded outline-none focus:ring-2 focus:ring-emerald-400">
+                            <span class="text-gray-500 font-bold">:</span>
+                            <input type="number" v-model.number="t2BoutScore" min="0" max="6" class="w-16 h-12 text-center text-2xl font-black bg-gray-950 border border-cyan-500 text-cyan-400 rounded outline-none focus:ring-2 focus:ring-cyan-400">
+                        </div>
+                        <button @click="submitBout" class="w-full mt-4 bg-orange-600 hover:bg-orange-500 text-white font-black py-2 rounded shadow-md transition">✅ 判定本局勝負</button>
+                    </div>
+
+                    <div v-if="t1AllDead || t2AllDead" class="text-center bg-gray-950 p-4 rounded-xl border border-orange-600 mt-4 animate-pulse">
+                        <div class="text-sm text-gray-400 font-bold mb-1">本場戰隊賽結束</div>
+                        <div class="text-2xl font-black text-orange-400">{{ t2AllDead ? active3v3Match.player1.name : active3v3Match.player2.name }} 獲勝晉級！</div>
+                    </div>
+                </div>
+
+                <!-- Team 2 -->
+                <div class="flex-1 bg-gray-950 p-4 rounded-xl border" :class="t2AllDead ? 'border-red-900 opacity-60 grayscale' : 'border-cyan-600'">
+                    <h4 class="text-xl font-black text-cyan-400 mb-4 text-center border-b border-gray-700 pb-2">🛡️ {{ active3v3Match.player2.name }}</h4>
+                    <div class="space-y-3">
+                        <label v-for="(member, idx) in active3v3Match.t2State" :key="idx" class="flex items-center gap-3 p-3 rounded-lg border transition cursor-pointer" :class="member.alive ? (selectedT2Member === member ? 'bg-cyan-950/60 border-cyan-500' : 'bg-gray-900 border-gray-700 hover:border-gray-500') : 'bg-red-950/30 border-red-900/50 opacity-40 grayscale cursor-not-allowed'">
+                            <input type="radio" :value="member" v-model="selectedT2Member" :disabled="!member.alive || isSpectator" class="w-5 h-5 accent-cyan-500">
+                            <span class="font-bold text-lg" :class="!member.alive ? 'line-through text-red-500' : 'text-white'">{{ member.name }}</span>
+                            <span v-if="!member.alive" class="ml-auto text-xs bg-red-900 text-white px-2 py-1 rounded">已陣亡</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 對戰日誌區 -->
+            <div class="mt-6 bg-black/50 border border-gray-800 rounded-xl p-3 h-32 overflow-y-auto custom-scrollbar">
+                <div v-if="active3v3Match.subMatches.length === 0" class="text-center text-gray-600 text-sm font-bold pt-4">尚未產生對戰日誌</div>
+                <div v-for="(log, idx) in active3v3Match.subMatches" :key="idx" class="flex justify-between items-center text-sm border-b border-gray-800/60 py-1.5 px-2">
+                    <span class="text-gray-500 font-bold">第 {{ idx + 1 }} 局</span>
+                    <span class="text-emerald-400 font-bold">{{ log.t1Player }}</span>
+                    <span class="text-gray-300 font-black tracking-widest bg-gray-900 px-2 rounded">
+                        <span :class="log.t1Score > log.t2Score ? 'text-orange-400' : 'text-gray-500'">{{ log.t1Score }}</span> : <span :class="log.t2Score > log.t1Score ? 'text-orange-400' : 'text-gray-500'">{{ log.t2Score }}</span>
+                    </span>
+                    <span class="text-cyan-400 font-bold">{{ log.t2Player }}</span>
+                    <span class="text-orange-400 font-black">🏆 勝出: {{ log.winner }}</span>
+                </div>
+            </div>
+
+            <div class="mt-4 text-center">
+                <button @click="close3v3Modal" class="bg-gray-800 border border-gray-600 text-white font-bold py-2.5 px-8 rounded-xl hover:bg-gray-700 transition">關閉對戰面板</button>
             </div>
         </div>
     </div>
@@ -650,6 +798,7 @@ createApp({
         const tournamentMode = ref('swiss'); 
         const newPlayerName = ref('');
         const players = ref([]);
+        const newTeamMembers = ref(['', '', '']);
         
         const currentRound = ref(1);
         const allSwissMatches = ref([]);
@@ -671,7 +820,12 @@ createApp({
         const finalThird = ref(null);     
         const finalFourth = ref(null);    
 
-        // WebRTC Config
+        const active3v3Match = ref(null);
+        const selectedT1Member = ref(null);
+        const selectedT2Member = ref(null);
+        const t1BoutScore = ref(null);
+        const t2BoutScore = ref(null);
+
         const isSpectator = ref(false);
         const spectatorCount = ref(0);
         const showQrModal = ref(false);
@@ -695,314 +849,22 @@ createApp({
         const isSmallTournament = computed(() => players.value.length <= 8);
         const targetWins = computed(() => isSmallTournament.value ? 2 : 3);
         const targetLosses = computed(() => isSmallTournament.value ? 2 : 3);
+        const bracketLayout = computed(() => { return isSmallTournament.value ? [['0-0'], ['1-0', '0-1'], ['1-1']] : [['0-0'], ['1-0', '0-1'], ['2-0', '1-1', '0-2'], ['2-1', '1-2'], ['2-2']]; });
 
-        const bracketLayout = computed(() => {
-            return isSmallTournament.value 
-                ? [['0-0'], ['1-0', '0-1'], ['1-1']]
-                : [['0-0'], ['1-0', '0-1'], ['2-0', '1-1', '0-2'], ['2-1', '1-2'], ['2-2']];
-        });
-
-        const totalPreliminaryMatches = computed(() => {
-            if (tournamentMode.value === 'swiss') return allSwissMatches.value.filter(m => !m.isBye).length;
-            if (tournamentMode.value === 'round_robin' || tournamentMode.value === 'super_round_robin') return rrGroups.value.reduce((sum, g) => sum + g.matches.length, 0);
-            return 0;
-        });
-
-        // 動態預期總場次計算 (包含 5人循環賽提示)
         const expectedMatchesText = computed(() => {
             const n = players.value.length;
             if (n < 4) return '-';
-
-            if (tournamentMode.value === 'swiss') {
-                const rounds = isSmallTournament.value ? 3 : 5;
-                return `約 ${Math.ceil((n / 2) * rounds)} 場`;
-            }
-            if (tournamentMode.value === 'round_robin') {
-                if (n === 5) return '⚠️ 不適用 (建議用超級車輪戰)';
-                const sizes = getRRGroupSizes(n);
-                const matches = sizes.reduce((sum, size) => sum + (size * (size - 1)) / 2, 0);
-                return `共 ${matches} 場小組賽`;
-            }
-            if (tournamentMode.value === 'super_round_robin') {
-                const matches = (n * (n - 1)) / 2;
-                return `共 ${matches} 場大亂鬥`;
-            }
-            if (tournamentMode.value === 'redemption') {
-                return `約 ${2 * n - 1} 場淘汰賽`;
+            if (tournamentMode.value === 'swiss') return `約 ${Math.ceil((n / 2) * (isSmallTournament.value ? 3 : 5))} 場`;
+            if (tournamentMode.value === 'round_robin') return n === 5 ? '⚠️ 不適用' : `共 ${getRRGroupSizes(n).reduce((sum, size) => sum + (size * (size - 1)) / 2, 0)} 場`;
+            if (tournamentMode.value === 'super_round_robin') return `共 ${(n * (n - 1)) / 2} 場`;
+            if (tournamentMode.value === 'redemption') return `約 ${2 * n - 1} 場淘汰賽`;
+            if (tournamentMode.value === 'single_elimination' || tournamentMode.value === 'team_3v3') {
+                let p = 1; while(p < n) p *= 2; return `約 ${p} 場淘汰賽`;
             }
             return '-';
         });
 
-        const onScoreChange = (changedMatch = null) => {
-            if (changedMatch && changedMatch.roundIndex && tournamentMode.value === 'swiss') {
-                if (changedMatch.roundIndex < currentRound.value) {
-                    alert(`⚠️ 注意：您修改了歷史輪次 (ROUND ${changedMatch.roundIndex}) 的比分！\n為確保瑞士制同戰績配對的公平性，系統已自動清除自 ROUND ${changedMatch.roundIndex + 1} 起的所有後續賽程。\n請確認本輪賽果後，重新點擊「推進下一輪」。`);
-                    allSwissMatches.value = allSwissMatches.value.filter(m => m.roundIndex <= changedMatch.roundIndex);
-                    currentRound.value = changedMatch.roundIndex;
-                    if (status.value === 'swiss_finished') {
-                        status.value = 'playing';
-                    }
-                }
-            }
-
-            recalculateAllStats();
-            if (bracketMatches.value.length > 0) updateBracketAdvancements();
-            if (wbMatches.value.length > 0) updateRedemptionAdvancements();
-            if (status.value === 'champion_crowned') updateFinalChampions();
-            saveToLocalStorage(); // 立刻廣播給觀眾
-        };
-
-        const recalculateAllStats = () => {
-            players.value.forEach(p => {
-                p.played = 0; p.wins = 0; p.losses = 0; p.totalPoints = 0; p.pointsAgainst = 0; p.advanced = false; p.eliminated = false;
-            });
-
-            allSwissMatches.value.forEach(m => {
-                if (!m.isBye && typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '') {
-                    m.player1.played++; m.player2.played++;
-                    m.player1.totalPoints += m.player1Score; m.player2.totalPoints += m.player2Score;
-                    m.player1.pointsAgainst += m.player2Score; m.player2.pointsAgainst += m.player1Score;
-                    if (m.player1Score > m.player2Score) { m.player1.wins++; m.player2.losses++; }
-                    else if (m.player2Score > m.player1Score) { m.player2.wins++; m.player1.losses++; }
-                } else if (m.isBye && typeof m.player1Score === 'number') {
-                    m.player1.played++; m.player1.wins++; m.player1.totalPoints += m.player1Score;
-                }
-            });
-
-            rrGroups.value.forEach(g => {
-                g.matches.forEach(m => {
-                    if (typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '') {
-                        m.player1.played++; m.player2.played++;
-                        m.player1.totalPoints += m.player1Score; m.player2.totalPoints += m.player2Score;
-                        m.player1.pointsAgainst += m.player2Score; m.player2.pointsAgainst += m.player1Score;
-                        if (m.player1Score > m.player2Score) { m.player1.wins++; m.player2.losses++; }
-                        else if (m.player2Score > m.player1Score) { m.player2.wins++; m.player1.losses++; }
-                    }
-                });
-            });
-
-            const processBracketMatch = (m) => {
-                 if (!m.isBye && m.player1 && m.player2 && typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '') {
-                    m.player1.played++; m.player2.played++;
-                    m.player1.totalPoints += m.player1Score; m.player2.totalPoints += m.player2Score;
-                    m.player1.pointsAgainst += m.player2Score; m.player2.pointsAgainst += m.player1Score;
-                 }
-            };
-            
-            bracketMatches.value.forEach(r => r.forEach(processBracketMatch));
-            if(normalBronzeMatch.value) processBracketMatch(normalBronzeMatch.value);
-            wbMatches.value.forEach(r => r.forEach(processBracketMatch));
-            lbMatches.value.forEach(r => r.forEach(processBracketMatch));
-            if(redemptionBronzeMatch.value) processBracketMatch(redemptionBronzeMatch.value);
-            if(gfMatch.value) processBracketMatch(gfMatch.value);
-
-            if (tournamentMode.value === 'swiss') {
-                players.value.forEach(p => {
-                    if (p.wins >= targetWins.value) p.advanced = true;
-                    if (p.losses >= targetLosses.value) p.eliminated = true;
-                });
-            }
-        };
-
-        const getWinnerInfo = (m) => {
-            if (!m) return { p: null, s: null };
-            if (m.isBye) return { p: m.player1 || m.player2, s: m.player1 ? m.player1Seed : m.player2Seed };
-            if (typeof m.player1Score !== 'number' || typeof m.player2Score !== 'number' || m.player1Score === '' || m.player2Score === '') return { p: null, s: null };
-            return m.player1Score > m.player2Score ? { p: m.player1, s: m.player1Seed } : { p: m.player2, s: m.player2Seed };
-        };
-
-        const getLoserInfo = (m) => {
-            if (!m) return { p: null, s: null };
-            if (m.isBye) return { p: null, s: null };
-            if (typeof m.player1Score !== 'number' || typeof m.player2Score !== 'number' || m.player1Score === '' || m.player2Score === '') return { p: null, s: null };
-            return m.player1Score > m.player2Score ? { p: m.player2, s: m.player2Seed } : { p: m.player1, s: m.player1Seed };
-        };
-
-        const updateBracketAdvancements = () => {
-            for (let i = 0; i < bracketMatches.value.length - 1; i++) {
-                const currentRound = bracketMatches.value[i];
-                const nextRound = bracketMatches.value[i+1];
-                for (let j = 0; j < currentRound.length; j += 2) {
-                    const m1 = currentRound[j]; const m2 = currentRound[j+1];
-                    const nextMatch = nextRound[j/2];
-                    
-                    const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
-                    
-                    const p1Changed = nextMatch.player1?.id !== w1Info.p?.id;
-                    const p2Changed = nextMatch.player2?.id !== w2Info.p?.id;
-
-                    nextMatch.player1 = w1Info.p; nextMatch.player1Seed = w1Info.s;
-                    nextMatch.player2 = w2Info.p; nextMatch.player2Seed = w2Info.s;
-                    
-                    const isBye = !w1Info.p || !w2Info.p;
-                    nextMatch.isBye = isBye;
-                    if (isBye) { 
-                        nextMatch.player1Score = w1Info.p ? 1 : 0; 
-                        nextMatch.player2Score = w2Info.p ? 1 : 0; 
-                    } else if (p1Changed || p2Changed) { 
-                        nextMatch.player1Score = null; 
-                        nextMatch.player2Score = null; 
-                    }
-                }
-            }
-            if (bracketMatches.value.length > 1 && normalBronzeMatch.value) {
-                const sf = bracketMatches.value[bracketMatches.value.length - 2];
-                const loser1 = getLoserInfo(sf[0]).p; const loser2 = getLoserInfo(sf[1]).p;
-                
-                const p1Changed = normalBronzeMatch.value.player1?.id !== loser1?.id;
-                const p2Changed = normalBronzeMatch.value.player2?.id !== loser2?.id;
-
-                normalBronzeMatch.value.player1 = loser1; normalBronzeMatch.value.player2 = loser2;
-                const isBye = !loser1 || !loser2;
-                normalBronzeMatch.value.isBye = isBye;
-                
-                if (isBye) { 
-                    normalBronzeMatch.value.player1Score = loser1 ? 1 : 0; 
-                    normalBronzeMatch.value.player2Score = loser2 ? 1 : 0; 
-                } else if (p1Changed || p2Changed) { 
-                    normalBronzeMatch.value.player1Score = null; 
-                    normalBronzeMatch.value.player2Score = null; 
-                }
-            }
-        };
-
-        const updateRedemptionAdvancements = () => {
-            const R = wbMatches.value.length;
-            for (let phase = 0; phase < R; phase++) {
-                const curWb = wbMatches.value[phase]; const nextWb = wbMatches.value[phase + 1]; const nextLbR0 = lbMatches.value[0];
-                
-                for (let i = 0; i < curWb.length; i += 2) {
-                    if (nextWb) {
-                        const w1 = getWinnerInfo(curWb[i]).p; const w2 = getWinnerInfo(curWb[i+1]).p;
-                        const isBye = !w1 || !w2;
-                        const p1Changed = nextWb[i/2].player1?.id !== w1?.id;
-                        const p2Changed = nextWb[i/2].player2?.id !== w2?.id;
-                        nextWb[i/2].player1 = w1; nextWb[i/2].player2 = w2; nextWb[i/2].isBye = isBye;
-                        if(isBye) { nextWb[i/2].player1Score = w1 ? 1 : 0; nextWb[i/2].player2Score = w2 ? 1 : 0; }
-                        else if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; }
-                    }
-                    if (phase === 0 && nextLbR0) {
-                        const l1 = getLoserInfo(curWb[i]).p; const l2 = getLoserInfo(curWb[i+1]).p;
-                        const isBye = !l1 || !l2;
-                        const p1Changed = nextLbR0[i/2].player1?.id !== l1?.id;
-                        const p2Changed = nextLbR0[i/2].player2?.id !== l2?.id;
-                        nextLbR0[i/2].player1 = l1; nextLbR0[i/2].player2 = l2; nextLbR0[i/2].isBye = isBye;
-                        if(isBye) { nextLbR0[i/2].player1Score = l1 ? 1 : 0; nextLbR0[i/2].player2Score = l2 ? 1 : 0; }
-                        else if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; }
-                    }
-                }
-
-                if (phase > 0) {
-                    const curLb = lbMatches.value[phase - 1]; const nextLb = lbMatches.value[phase];
-                    if (nextLb) {
-                        for (let i = 0; i < curLb.length; i += 2) {
-                            const w1 = getWinnerInfo(curLb[i]).p; const w2 = getWinnerInfo(curLb[i+1]).p;
-                            const isBye = !w1 || !w2;
-                            const p1Changed = nextLb[i/2].player1?.id !== w1?.id;
-                            const p2Changed = nextLb[i/2].player2?.id !== w2?.id;
-                            nextLb[i/2].player1 = w1; nextLb[i/2].player2 = w2; nextLb[i/2].isBye = isBye;
-                            if(isBye) { nextLb[i/2].player1Score = w1 ? 1 : 0; nextLb[i/2].player2Score = w2 ? 1 : 0; }
-                            else if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; }
-                        }
-                    }
-                }
-
-                if (phase === R - 1) {
-                    const wChamp = getWinnerInfo(curWb[0]).p; const lChamp = lbMatches.value.length > 0 ? getWinnerInfo(lbMatches.value[R - 2][0]).p : null;
-                    const gfP1Changed = gfMatch.value.player1?.id !== wChamp?.id;
-                    const gfP2Changed = gfMatch.value.player2?.id !== lChamp?.id;
-                    gfMatch.value.player1 = wChamp; gfMatch.value.player2 = lChamp;
-                    if (!wChamp || !lChamp) { 
-                        gfMatch.value.isBye = true; gfMatch.value.player1Score = wChamp ? 1 : 0; gfMatch.value.player2Score = lChamp ? 1 : 0; 
-                    } else {
-                        gfMatch.value.isBye = false;
-                        if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
-                    }
-                    
-                    const wLoser = getLoserInfo(curWb[0]).p; const lLoser = lbMatches.value.length > 0 ? getLoserInfo(lbMatches.value[R - 2][0]).p : null;
-                    const rzP1Changed = redemptionBronzeMatch.value.player1?.id !== wLoser?.id;
-                    const rzP2Changed = redemptionBronzeMatch.value.player2?.id !== lLoser?.id;
-                    redemptionBronzeMatch.value.player1 = wLoser; redemptionBronzeMatch.value.player2 = lLoser;
-                    if (!wLoser || !lLoser) { 
-                        redemptionBronzeMatch.value.isBye = true; redemptionBronzeMatch.value.player1Score = wLoser ? 1 : 0; redemptionBronzeMatch.value.player2Score = lLoser ? 1 : 0; 
-                    } else {
-                        redemptionBronzeMatch.value.isBye = false;
-                        if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; }
-                    }
-                }
-            }
-        };
-
-        const updateFinalChampions = () => {
-            if (tournamentMode.value === 'redemption') {
-                finalChampion.value = getWinnerInfo(gfMatch.value).p; finalRunnerUp.value = getLoserInfo(gfMatch.value).p;
-                finalThird.value = getWinnerInfo(redemptionBronzeMatch.value).p; finalFourth.value = getLoserInfo(redemptionBronzeMatch.value).p;
-            } else if (status.value === 'champion_crowned' || status.value === 'bracket') {
-                const gf = bracketMatches.value[bracketMatches.value.length - 1][0];
-                finalChampion.value = getWinnerInfo(gf).p; finalRunnerUp.value = getLoserInfo(gf).p;
-                if (normalBronzeMatch.value) { finalThird.value = getWinnerInfo(normalBronzeMatch.value).p; finalFourth.value = getLoserInfo(normalBronzeMatch.value).p; }
-            }
-        };
-        // －－－－－－－－－－－－－－－－－－－－－－－－－－－－
-
-        const addPlayer = () => {
-            if (newPlayerName.value.trim()) {
-                players.value.push({ id: Date.now() + Math.random(), name: newPlayerName.value.trim(), played: 0, wins: 0, losses: 0, totalPoints: 0, pointsAgainst: 0, advanced: false, eliminated: false });
-                newPlayerName.value = '';
-            }
-        };
-
-        const removePlayer = (index) => players.value.splice(index, 1);
-        const clearPlayerList = () => { if (confirm('確定要清空所有選手名單嗎？')) { players.value = []; saveToLocalStorage(); } };
-
-        const startTournament = () => {
-            status.value = 'playing';
-            for (let i = players.value.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                const temp = players.value[i]; players.value[i] = players.value[j]; players.value[j] = temp;
-            }
-            if (tournamentMode.value === 'swiss') { currentRound.value = 1; allSwissMatches.value = []; generateMatchesForRound(1); } 
-            else if (tournamentMode.value === 'round_robin') { generateRoundRobin(); } 
-            else if (tournamentMode.value === 'super_round_robin') { generateSuperRoundRobin(); } 
-            else if (tournamentMode.value === 'redemption') { initRedemptionBracket(); }
-            saveToLocalStorage(); // 強制即時廣播
-        };
-
-        const generateMatchesForRound = (rIndex) => {
-            const activePool = players.value.filter(p => !p.advanced && !p.eliminated);
-            for (let i = activePool.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                const temp = activePool[i]; activePool[i] = activePool[j]; activePool[j] = temp;
-            }
-            activePool.sort((a, b) => { const scoreA = a.wins - a.losses; const scoreB = b.wins - b.losses; return scoreB - scoreA; });
-            const pool = [...activePool];
-            let currentMatchNum = allSwissMatches.value.filter(m => !m.isBye).length + 1;
-            while (pool.length > 1) {
-                const p1 = pool.shift(); const p2 = pool.shift(); const groupKey = `${p1.wins}-${p1.losses}`;
-                allSwissMatches.value.push({ id: 'm_' + Date.now() + Math.random(), roundIndex: rIndex, groupKey: groupKey, player1: p1, player2: p2, player1Score: null, player2Score: null, isBye: false, matchNumber: currentMatchNum++ });
-            }
-            if (pool.length === 1) {
-                const p1 = pool.shift(); const groupKey = `${p1.wins}-${p1.losses}`;
-                allSwissMatches.value.push({ id: 'm_' + Date.now() + Math.random(), roundIndex: rIndex, groupKey: groupKey, player1: p1, player2: null, player1Score: 1, player2Score: 0, isBye: true });
-            }
-            onScoreChange(); 
-        };
-
         const getGroupMatches = (rIndex, groupKey) => allSwissMatches.value.filter(m => m.roundIndex === rIndex && m.groupKey === groupKey);
-
-        const allSwissMatchesScored = computed(() => {
-            const currentMatches = allSwissMatches.value.filter(m => m.roundIndex === currentRound.value && !m.isBye);
-            if (currentMatches.length === 0) return true;
-            return currentMatches.every(m => typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '');
-        });
-
-        const nextRoundSwiss = () => {
-            const activePool = players.value.filter(p => !p.advanced && !p.eliminated);
-            if (activePool.length <= 1 || currentRound.value >= (isSmallTournament.value ? 3 : 5)) { status.value = 'swiss_finished'; } 
-            else { currentRound.value += 1; generateMatchesForRound(currentRound.value); }
-            saveToLocalStorage();
-        };
-
         const getRRGroupSizes = (n) => {
             if (n < 4) return [n]; if (n === 5) return [5]; 
             let sizes = []; let count3 = 0;
@@ -1013,51 +875,65 @@ createApp({
             return sizes;
         };
 
-        const generateRoundRobin = () => {
-            rrGroups.value = []; const activePool = [...players.value]; const sizes = getRRGroupSizes(activePool.length);
-            const optimalOrders = { 2: [[0, 1]], 3: [[0, 1], [1, 2], [0, 2]], 4: [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3], [1, 2]], 5: [[0, 1], [2, 3], [0, 4], [1, 2], [3, 4], [0, 2], [1, 4], [0, 3], [2, 4], [1, 3]] };
-
-            let globalMatchNum = 1;
-            sizes.forEach((size, index) => {
-                const groupPlayers = activePool.splice(0, size); const matches = [];
-                let order = optimalOrders[groupPlayers.length];
-                if (!order) {
-                    order = [];
-                    for (let i = 0; i < groupPlayers.length; i++) for (let j = i + 1; j < groupPlayers.length; j++) order.push([i, j]);
+        const onScoreChange = (changedMatch = null) => {
+            if (changedMatch && changedMatch.roundIndex && tournamentMode.value === 'swiss') {
+                if (changedMatch.roundIndex < currentRound.value) {
+                    alert(`⚠️ 注意：您修改了歷史輪次的成績！\n系統已自動清除自 ROUND ${changedMatch.roundIndex + 1} 起的後續賽程。`);
+                    allSwissMatches.value = allSwissMatches.value.filter(m => m.roundIndex <= changedMatch.roundIndex);
+                    currentRound.value = changedMatch.roundIndex;
+                    if (status.value === 'swiss_finished') status.value = 'playing';
                 }
-                order.forEach((pair) => {
-                    matches.push({ id: `rr_${index}_${pair[0]}_${pair[1]}`, player1: groupPlayers[pair[0]], player2: groupPlayers[pair[1]], player1Score: null, player2Score: null, matchNumber: globalMatchNum++ });
-                });
-                rrGroups.value.push({ id: index, players: groupPlayers, matches });
-            });
-        };
-
-        const generateSuperRoundRobin = () => {
-            rrGroups.value = []; const groupPlayers = [...players.value]; const matches = [];
-            let n = groupPlayers.length; const pList = groupPlayers.map((p, idx) => idx);
-            if (n % 2 !== 0) pList.push(null); n = pList.length;
-
-            let globalMatchNum = 1;
-            for (let round = 0; round < n - 1; round++) {
-                for (let i = 0; i < n / 2; i++) {
-                    const p1Idx = pList[i]; const p2Idx = pList[n - 1 - i];
-                    if (p1Idx !== null && p2Idx !== null) {
-                        matches.push({ id: `srr_${round}_${p1Idx}_${p2Idx}`, player1: groupPlayers[p1Idx], player2: groupPlayers[p2Idx], player1Score: null, player2Score: null, matchNumber: globalMatchNum++ });
+            }
+            recalculateAllStats();
+            if (bracketMatches.value.length > 0) updateBracketAdvancements();
+            if (wbMatches.value.length > 0) updateRedemptionAdvancements();
+            
+            // 自動揭曉冠軍名次：檢查是否所有淘汰賽事都已輸入比分
+            if (['bracket', 'redemption_bracket', 'champion_crowned'].includes(status.value)) {
+                if (tournamentMode.value === 'redemption') {
+                    if (canProgressRedemption.value) {
+                        status.value = 'champion_crowned';
+                        updateFinalChampions();
+                    }
+                } else {
+                    if (allBracketMatchesScored.value) {
+                        status.value = 'champion_crowned';
+                        updateFinalChampions();
                     }
                 }
-                const last = pList.pop(); pList.splice(1, 0, last);
             }
-            rrGroups.value.push({ id: 'super', players: groupPlayers, matches });
+            saveToLocalStorage();
         };
 
-        const allRRMatchesScored = computed(() => {
-            if (rrGroups.value.length === 0) return false;
-            for (const group of rrGroups.value) for (const match of group.matches) if (typeof match.player1Score !== 'number' || typeof match.player2Score !== 'number' || match.player1Score === '' || match.player2Score === '') return false;
-            return true;
-        });
+        const recalculateAllStats = () => {
+            players.value.forEach(p => { p.played = 0; p.wins = 0; p.losses = 0; p.totalPoints = 0; p.pointsAgainst = 0; p.advanced = false; p.eliminated = false; });
+            const processMatch = (m) => {
+                 if (!m.isBye && m.player1 && m.player2 && typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '') {
+                    m.player1.played++; m.player2.played++;
+                    m.player1.totalPoints += m.player1Score; m.player2.totalPoints += m.player2Score;
+                    m.player1.pointsAgainst += m.player2Score; m.player2.pointsAgainst += m.player1Score;
+                    if (m.player1Score > m.player2Score) { m.player1.wins++; m.player2.losses++; }
+                    else if (m.player2Score > m.player1Score) { m.player2.wins++; m.player1.losses++; }
+                 } else if (m.isBye && typeof m.player1Score === 'number' && tournamentMode.value === 'swiss') {
+                    m.player1.played++; m.player1.wins++; m.player1.totalPoints += m.player1Score;
+                 }
+            };
+            allSwissMatches.value.forEach(processMatch);
+            rrGroups.value.forEach(g => g.matches.forEach(processMatch));
+            bracketMatches.value.forEach(r => r.forEach(processMatch));
+            if(normalBronzeMatch.value) processMatch(normalBronzeMatch.value);
+            wbMatches.value.forEach(r => r.forEach(processMatch));
+            lbMatches.value.forEach(r => r.forEach(processMatch));
+            if(redemptionBronzeMatch.value) processMatch(redemptionBronzeMatch.value);
+            if(gfMatch.value) processMatch(gfMatch.value);
 
-        const finishRoundRobin = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
-        const forceFinishPhase = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
+            if (tournamentMode.value === 'swiss') {
+                players.value.forEach(p => {
+                    if (p.wins >= targetWins.value) p.advanced = true;
+                    if (p.losses >= targetLosses.value) p.eliminated = true;
+                });
+            }
+        };
 
         const sortedPlayers = computed(() => {
             return [...players.value].sort((a, b) => {
@@ -1076,53 +952,301 @@ createApp({
             });
         });
 
-        const resetTournamentState = () => {
-            players.value.forEach(p => { p.played = 0; p.wins = 0; p.losses = 0; p.totalPoints = 0; p.pointsAgainst = 0; p.advanced = false; p.eliminated = false; });
-            allSwissMatches.value = []; rrGroups.value = []; bracketMatches.value = []; normalBronzeMatch.value = null;
-            wbMatches.value = []; lbMatches.value = []; gfMatch.value = null; redemptionBronzeMatch.value = null;
-            currentRound.value = 1; currentBracketRoundIndex.value = 0; currentRedemptionPhase.value = 0;
-            finalChampion.value = null; finalRunnerUp.value = null; finalThird.value = null; finalFourth.value = null;
+        // 判斷賽事是否已實際打完輸入成績
+        const isMatchFinished = (m) => m && (m.isBye || (typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== ''));
+
+        const getWinnerInfo = (m) => {
+            if (!m) return { p: null, s: null };
+            if (m.isBye) return { p: m.player1 || m.player2, s: m.player1 ? m.player1Seed : m.player2Seed };
+            if (!isMatchFinished(m)) return { p: null, s: null };
+            return m.player1Score > m.player2Score ? { p: m.player1, s: m.player1Seed } : { p: m.player2, s: m.player2Seed };
+        };
+        const getLoserInfo = (m) => {
+            if (!m) return { p: null, s: null };
+            if (m.isBye) return { p: null, s: null };
+            if (!isMatchFinished(m)) return { p: null, s: null };
+            return m.player1Score > m.player2Score ? { p: m.player2, s: m.player2Seed } : { p: m.player1, s: m.player1Seed };
         };
 
-        const returnToSetup = () => { if (confirm('確定要返回首頁嗎？\n（目前的比分與賽程進度將會遺失，但會保留所有選手名單）')) { resetTournamentState(); status.value = 'setup'; saveToLocalStorage(); } };
-        
-        const toggleMode = () => {
-            const modes = ['swiss', 'round_robin', 'super_round_robin', 'redemption'];
-            const names = ['瑞士制', '小組循環賽', '超級車輪戰', '敗部復活單淘汰'];
-            const nextMode = modes[(modes.indexOf(tournamentMode.value) + 1) % modes.length];
-            if (confirm(`確定要切換為「${names[modes.indexOf(nextMode)]}」並重新洗牌開打嗎？\n（目前的比分進度將會遺失）`)) { tournamentMode.value = nextMode; resetTournamentState(); startTournament(); saveToLocalStorage(); }
+        const updateBracketAdvancements = () => {
+            for (let i = 0; i < bracketMatches.value.length - 1; i++) {
+                const currentRound = bracketMatches.value[i]; const nextRound = bracketMatches.value[i+1];
+                for (let j = 0; j < currentRound.length; j += 2) {
+                    const m1 = currentRound[j]; const m2 = currentRound[j+1];
+                    const nextMatch = nextRound[Math.floor(j/2)];
+                    
+                    const m1Finished = isMatchFinished(m1);
+                    const m2Finished = isMatchFinished(m2);
+                    const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
+                    
+                    const p1Changed = nextMatch.player1?.id !== w1Info.p?.id;
+                    const p2Changed = nextMatch.player2?.id !== w2Info.p?.id;
+                    nextMatch.player1 = w1Info.p; nextMatch.player1Seed = w1Info.s;
+                    nextMatch.player2 = w2Info.p; nextMatch.player2Seed = w2Info.s;
+
+                    if (m1Finished && m2Finished) {
+                        const isBye = !w1Info.p || !w2Info.p;
+                        nextMatch.isBye = isBye;
+                        if (isBye) { nextMatch.player1Score = w1Info.p ? 1 : 0; nextMatch.player2Score = w2Info.p ? 1 : 0; } 
+                        else if (p1Changed || p2Changed) { nextMatch.player1Score = null; nextMatch.player2Score = null; }
+                    } else {
+                        nextMatch.isBye = false; // 只有在確定無選手上來時才設為 Bye，否則維持等待中(TBD)
+                        if (p1Changed || p2Changed) { nextMatch.player1Score = null; nextMatch.player2Score = null; }
+                    }
+                }
+            }
+            if (bracketMatches.value.length > 1 && normalBronzeMatch.value) {
+                const sf = bracketMatches.value[bracketMatches.value.length - 2];
+                const m1 = sf[0]; const m2 = sf[1];
+                const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
+                
+                const loser1 = getLoserInfo(m1).p; const loser2 = getLoserInfo(m2).p;
+                const p1Changed = normalBronzeMatch.value.player1?.id !== loser1?.id;
+                const p2Changed = normalBronzeMatch.value.player2?.id !== loser2?.id;
+                normalBronzeMatch.value.player1 = loser1; normalBronzeMatch.value.player2 = loser2;
+                
+                if (m1Finished && m2Finished) {
+                    const isBye = !loser1 || !loser2;
+                    normalBronzeMatch.value.isBye = isBye;
+                    if (isBye) { normalBronzeMatch.value.player1Score = loser1 ? 1 : 0; normalBronzeMatch.value.player2Score = loser2 ? 1 : 0; } 
+                    else if (p1Changed || p2Changed) { normalBronzeMatch.value.player1Score = null; normalBronzeMatch.value.player2Score = null; }
+                } else {
+                    normalBronzeMatch.value.isBye = false;
+                    if (p1Changed || p2Changed) { normalBronzeMatch.value.player1Score = null; normalBronzeMatch.value.player2Score = null; }
+                }
+            }
         };
 
-        const resetKeepPlayers = () => { if (confirm('確定要重新開始比賽嗎？\n（將保留目前名單，並再次隨機打亂所有對戰組合）')) { resetTournamentState(); startTournament(); saveToLocalStorage(); } };
-        const resetAll = () => { if (confirm('確定要完全重置嗎？\n（包含選手名單在內的所有資料都將被清空）')) { players.value = []; resetTournamentState(); status.value = 'setup'; saveToLocalStorage(); } };
+        const updateRedemptionAdvancements = () => {
+            const R = wbMatches.value.length;
+            for (let phase = 0; phase < R; phase++) {
+                const curWb = wbMatches.value[phase]; const nextWb = wbMatches.value[phase + 1]; const nextLbR0 = lbMatches.value[0];
+                for (let i = 0; i < curWb.length; i += 2) {
+                    const m1 = curWb[i]; const m2 = curWb[i+1];
+                    const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
+                    
+                    if (nextWb) {
+                        const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
+                        const p1Changed = nextWb[i/2].player1?.id !== w1Info.p?.id; const p2Changed = nextWb[i/2].player2?.id !== w2Info.p?.id;
+                        nextWb[i/2].player1 = w1Info.p; nextWb[i/2].player2 = w2Info.p;
+                        if (m1Finished && m2Finished) {
+                            const isBye = !w1Info.p || !w2Info.p;
+                            nextWb[i/2].isBye = isBye;
+                            if(isBye) { nextWb[i/2].player1Score = w1Info.p ? 1 : 0; nextWb[i/2].player2Score = w2Info.p ? 1 : 0; }
+                            else if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; }
+                        } else {
+                            nextWb[i/2].isBye = false;
+                            if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; }
+                        }
+                    }
+                    if (phase === 0 && nextLbR0) {
+                        const l1 = getLoserInfo(m1).p; const l2 = getLoserInfo(m2).p;
+                        const p1Changed = nextLbR0[i/2].player1?.id !== l1?.id; const p2Changed = nextLbR0[i/2].player2?.id !== l2?.id;
+                        nextLbR0[i/2].player1 = l1; nextLbR0[i/2].player2 = l2;
+                        if (m1Finished && m2Finished) {
+                            const isBye = !l1 || !l2;
+                            nextLbR0[i/2].isBye = isBye;
+                            if(isBye) { nextLbR0[i/2].player1Score = l1 ? 1 : 0; nextLbR0[i/2].player2Score = l2 ? 1 : 0; }
+                            else if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; }
+                        } else {
+                            nextLbR0[i/2].isBye = false;
+                            if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; }
+                        }
+                    }
+                }
+                if (phase > 0) {
+                    const curLb = lbMatches.value[phase - 1]; const nextLb = lbMatches.value[phase];
+                    if (nextLb) {
+                        for (let i = 0; i < curLb.length; i += 2) {
+                            const m1 = curLb[i]; const m2 = curLb[i+1];
+                            const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
+                            const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
+                            const p1Changed = nextLb[i/2].player1?.id !== w1Info.p?.id; const p2Changed = nextLb[i/2].player2?.id !== w2Info.p?.id;
+                            nextLb[i/2].player1 = w1Info.p; nextLb[i/2].player2 = w2Info.p;
+                            if (m1Finished && m2Finished) {
+                                const isBye = !w1Info.p || !w2Info.p;
+                                nextLb[i/2].isBye = isBye;
+                                if(isBye) { nextLb[i/2].player1Score = w1Info.p ? 1 : 0; nextLb[i/2].player2Score = w2Info.p ? 1 : 0; }
+                                else if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; }
+                            } else {
+                                nextLb[i/2].isBye = false;
+                                if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; }
+                            }
+                        }
+                    }
+                }
+                if (phase === R - 1) {
+                    const m1Wb = curWb[0]; const m2Lb = lbMatches.value.length > 0 ? lbMatches.value[R - 2][0] : null;
+                    const m1Finished = isMatchFinished(m1Wb); const m2Finished = !m2Lb || isMatchFinished(m2Lb);
+                    
+                    const wChamp = getWinnerInfo(m1Wb).p; const lChamp = m2Lb ? getWinnerInfo(m2Lb).p : null;
+                    const gfP1Changed = gfMatch.value.player1?.id !== wChamp?.id; const gfP2Changed = gfMatch.value.player2?.id !== lChamp?.id;
+                    gfMatch.value.player1 = wChamp; gfMatch.value.player2 = lChamp;
+                    
+                    if (m1Finished && m2Finished) {
+                        const isBye = !wChamp || !lChamp;
+                        gfMatch.value.isBye = isBye;
+                        if (isBye) { gfMatch.value.player1Score = wChamp ? 1 : 0; gfMatch.value.player2Score = lChamp ? 1 : 0; } 
+                        else if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
+                    } else {
+                        gfMatch.value.isBye = false;
+                        if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
+                    }
+                    
+                    const wLoser = getLoserInfo(m1Wb).p; const lLoser = m2Lb ? getLoserInfo(m2Lb).p : null;
+                    const rzP1Changed = redemptionBronzeMatch.value.player1?.id !== wLoser?.id; const rzP2Changed = redemptionBronzeMatch.value.player2?.id !== lLoser?.id;
+                    redemptionBronzeMatch.value.player1 = wLoser; redemptionBronzeMatch.value.player2 = lLoser;
+                    
+                    if (m1Finished && m2Finished) {
+                        const isBye = !wLoser || !lLoser;
+                        redemptionBronzeMatch.value.isBye = isBye;
+                        if (isBye) { redemptionBronzeMatch.value.player1Score = wLoser ? 1 : 0; redemptionBronzeMatch.value.player2Score = lLoser ? 1 : 0; } 
+                        else if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; }
+                    } else {
+                        redemptionBronzeMatch.value.isBye = false;
+                        if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; }
+                    }
+                }
+            }
+        };
+
+        const updateFinalChampions = () => {
+            if (tournamentMode.value === 'redemption') {
+                finalChampion.value = getWinnerInfo(gfMatch.value).p; finalRunnerUp.value = getLoserInfo(gfMatch.value).p;
+                finalThird.value = getWinnerInfo(redemptionBronzeMatch.value).p; finalFourth.value = getLoserInfo(redemptionBronzeMatch.value).p;
+            } else if (['champion_crowned', 'bracket'].includes(status.value)) {
+                const gf = bracketMatches.value[bracketMatches.value.length - 1][0];
+                finalChampion.value = getWinnerInfo(gf).p; finalRunnerUp.value = getLoserInfo(gf).p;
+                if (normalBronzeMatch.value) { finalThird.value = getWinnerInfo(normalBronzeMatch.value).p; finalFourth.value = getLoserInfo(normalBronzeMatch.value).p; }
+            }
+        };
+
+        const addPlayer = () => {
+            if (newPlayerName.value.trim()) {
+                players.value.push({ id: Date.now() + Math.random(), name: newPlayerName.value.trim(), isTeam: false, played: 0, wins: 0, losses: 0, totalPoints: 0, pointsAgainst: 0, advanced: false, eliminated: false });
+                newPlayerName.value = '';
+            }
+        };
+
+        const addTeam = () => {
+            if (newPlayerName.value.trim() && newTeamMembers.value.every(m => m.trim() !== '')) {
+                players.value.push({
+                    id: Date.now() + Math.random(), name: newPlayerName.value.trim(), isTeam: true,
+                    members: newTeamMembers.value.map(m => ({ id: Date.now()+Math.random(), name: m.trim(), alive: true })),
+                    played: 0, wins: 0, losses: 0, totalPoints: 0, pointsAgainst: 0, advanced: false, eliminated: false
+                });
+                newPlayerName.value = ''; newTeamMembers.value = ['', '', ''];
+            } else { alert('請完整輸入戰隊名稱與三位隊員名稱！'); }
+        };
+
+        const removePlayer = (index) => players.value.splice(index, 1);
+        const clearPlayerList = () => { if (confirm('確定要清空所有名單嗎？')) { players.value = []; saveToLocalStorage(); } };
+
+        const startTournament = () => {
+            status.value = 'playing';
+            for (let i = players.value.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const temp = players.value[i]; players.value[i] = players.value[j]; players.value[j] = temp;
+            }
+            if (tournamentMode.value === 'swiss') { currentRound.value = 1; allSwissMatches.value = []; generateMatchesForRound(1); } 
+            else if (tournamentMode.value === 'round_robin') { generateRoundRobin(); } 
+            else if (tournamentMode.value === 'super_round_robin') { generateSuperRoundRobin(); } 
+            else if (tournamentMode.value === 'redemption') { initRedemptionBracket(); }
+            else if (tournamentMode.value === 'single_elimination' || tournamentMode.value === 'team_3v3') { initSingleEliminationBracket(); }
+            saveToLocalStorage();
+        };
+
+        const generateMatchesForRound = (rIndex) => {
+            const activePool = players.value.filter(p => !p.advanced && !p.eliminated);
+            for (let i = activePool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const temp = activePool[i]; activePool[i] = activePool[j]; activePool[j] = temp;
+            }
+            activePool.sort((a, b) => { const scoreA = a.wins - a.losses; const scoreB = b.wins - b.losses; return scoreB - scoreA; });
+            const pool = [...activePool]; let currentMatchNum = allSwissMatches.value.filter(m => !m.isBye).length + 1;
+            while (pool.length > 1) {
+                const p1 = pool.shift(); const p2 = pool.shift(); const groupKey = `${p1.wins}-${p1.losses}`;
+                allSwissMatches.value.push({ id: 'm_' + Date.now() + Math.random(), roundIndex: rIndex, groupKey: groupKey, player1: p1, player2: p2, player1Score: null, player2Score: null, isBye: false, matchNumber: currentMatchNum++ });
+            }
+            if (pool.length === 1) {
+                const p1 = pool.shift(); const groupKey = `${p1.wins}-${p1.losses}`;
+                allSwissMatches.value.push({ id: 'm_' + Date.now() + Math.random(), roundIndex: rIndex, groupKey: groupKey, player1: p1, player2: null, player1Score: 1, player2Score: 0, isBye: true });
+            }
+            onScoreChange(); 
+        };
+
+        const allSwissMatchesScored = computed(() => {
+            const currentMatches = allSwissMatches.value.filter(m => m.roundIndex === currentRound.value && !m.isBye);
+            if (currentMatches.length === 0) return true;
+            return currentMatches.every(m => typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '');
+        });
+
+        const nextRoundSwiss = () => {
+            const activePool = players.value.filter(p => !p.advanced && !p.eliminated);
+            if (activePool.length <= 1 || currentRound.value >= (isSmallTournament.value ? 3 : 5)) { status.value = 'swiss_finished'; } 
+            else { currentRound.value += 1; generateMatchesForRound(currentRound.value); }
+            saveToLocalStorage();
+        };
+
+        const generateRoundRobin = () => {
+            rrGroups.value = []; const activePool = [...players.value]; const sizes = getRRGroupSizes(activePool.length);
+            const optimalOrders = { 2: [[0, 1]], 3: [[0, 1], [1, 2], [0, 2]], 4: [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3], [1, 2]], 5: [[0, 1], [2, 3], [0, 4], [1, 2], [3, 4], [0, 2], [1, 4], [0, 3], [2, 4], [1, 3]] };
+            let globalMatchNum = 1;
+            sizes.forEach((size, index) => {
+                const groupPlayers = activePool.splice(0, size); const matches = [];
+                let order = optimalOrders[groupPlayers.length];
+                if (!order) { order = []; for (let i = 0; i < groupPlayers.length; i++) for (let j = i + 1; j < groupPlayers.length; j++) order.push([i, j]); }
+                order.forEach((pair) => { matches.push({ id: `rr_${index}_${pair[0]}_${pair[1]}`, player1: groupPlayers[pair[0]], player2: groupPlayers[pair[1]], player1Score: null, player2Score: null, matchNumber: globalMatchNum++ }); });
+                rrGroups.value.push({ id: index, players: groupPlayers, matches });
+            });
+        };
+
+        const generateSuperRoundRobin = () => {
+            rrGroups.value = []; const groupPlayers = [...players.value]; const matches = [];
+            let n = groupPlayers.length; const pList = groupPlayers.map((p, idx) => idx);
+            if (n % 2 !== 0) pList.push(null); n = pList.length;
+            let globalMatchNum = 1;
+            for (let round = 0; round < n - 1; round++) {
+                for (let i = 0; i < n / 2; i++) {
+                    const p1Idx = pList[i]; const p2Idx = pList[n - 1 - i];
+                    if (p1Idx !== null && p2Idx !== null) { matches.push({ id: `srr_${round}_${p1Idx}_${p2Idx}`, player1: groupPlayers[p1Idx], player2: groupPlayers[p2Idx], player1Score: null, player2Score: null, matchNumber: globalMatchNum++ }); }
+                }
+                const last = pList.pop(); pList.splice(1, 0, last);
+            }
+            rrGroups.value.push({ id: 'super', players: groupPlayers, matches });
+        };
+
+        const allRRMatchesScored = computed(() => {
+            if (rrGroups.value.length === 0) return false;
+            for (const group of rrGroups.value) for (const match of group.matches) if (typeof match.player1Score !== 'number' || typeof match.player2Score !== 'number' || match.player1Score === '' || match.player2Score === '') return false;
+            return true;
+        });
+
+        const finishRoundRobin = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
+        const forceFinishPhase = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
 
         const startBracket = (size) => {
-            status.value = 'bracket'; currentBracketRoundIndex.value = 0;
+            status.value = 'bracket'; 
             const topPlayers = sortedPlayers.value.slice(0, size);
             while (topPlayers.length < size) topPlayers.push(null);
-
+            
             let seeds = size === 8 ? [0, 7, 3, 4, 1, 6, 2, 5] : [0, 3, 1, 2];
             let firstRound = []; let bracketMatchNum = 1; 
             
             for (let i = 0; i < size; i += 2) {
-                const p1 = topPlayers[seeds[i]] || null; const p2 = topPlayers[seeds[i+1]] || null;
-                const isBye = !p1 || !p2;
+                const p1 = topPlayers[seeds[i]] || null; const p2 = topPlayers[seeds[i+1]] || null; const isBye = !p1 || !p2;
                 firstRound.push({
                     id: 'b_1_' + i, player1: p1, player2: p2, player1Seed: p1 ? seeds[i] + 1 : null, player2Seed: p2 ? seeds[i+1] + 1 : null,
-                    player1Score: isBye ? (p1 ? 1 : 0) : null, player2Score: isBye ? (p2 ? 1 : 0) : null, 
-                    isBye: isBye, matchNumber: isBye ? null : bracketMatchNum++
+                    player1Score: isBye ? (p1 ? 1 : 0) : null, player2Score: isBye ? (p2 ? 1 : 0) : null, isBye: isBye, matchNumber: isBye ? null : bracketMatchNum++
                 });
             }
             bracketMatches.value = [firstRound];
             let matchesInRound = size / 4;
             while (matchesInRound >= 1) {
                 let round = [];
-                for (let i = 0; i < matchesInRound; i++) {
-                    round.push({ id: 'b_r_' + matchesInRound + '_' + i, player1: null, player2: null, player1Seed: null, player2Seed: null, player1Score: null, player2Score: null, isBye: false, matchNumber: bracketMatchNum++ });
-                }
+                for (let i = 0; i < matchesInRound; i++) { round.push({ id: 'b_r_' + matchesInRound + '_' + i, player1: null, player2: null, player1Seed: null, player2Seed: null, player1Score: null, player2Score: null, isBye: false, matchNumber: bracketMatchNum++ }); }
                 bracketMatches.value.push(round); matchesInRound /= 2;
             }
-            
             bracketMatchNum--;
             normalBronzeMatch.value = { id: 'bronze', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: bracketMatchNum++ };
             bracketMatches.value[bracketMatches.value.length - 1][0].matchNumber = bracketMatchNum++;
@@ -1130,82 +1254,102 @@ createApp({
             onScoreChange();
         };
 
-        const allBracketMatchesScored = computed(() => {
-            if (status.value !== 'bracket') return false;
-            const currentRoundMatches = bracketMatches.value[currentBracketRoundIndex.value];
-            if (!currentRoundMatches) return false;
-            
-            let valid = currentRoundMatches.every(m => m.isBye || (typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== ''));
-            if (currentBracketRoundIndex.value === bracketMatches.value.length - 1 && normalBronzeMatch.value) {
-                const b = normalBronzeMatch.value;
-                valid = valid && (b.isBye || (typeof b.player1Score === 'number' && typeof b.player2Score === 'number' && b.player1Score !== '' && b.player2Score !== ''));
+        const initSingleEliminationBracket = () => {
+            let n = 4; while (n < players.value.length) n *= 2;
+            let paddedPlayers = [...players.value]; while (paddedPlayers.length < n) paddedPlayers.push(null);
+            const getSeeds = (size) => {
+                if (size === 4) return [0,3, 1,2]; if (size === 8) return [0,7, 3,4, 1,6, 2,5];
+                if (size === 16) return [0,15, 7,8, 3,12, 4,11, 1,14, 6,9, 2,13, 5,10];
+                if (size === 32) return [0,31, 15,16, 7,24, 8,23, 3,28, 12,19, 4,27, 11,20, 1,30, 14,17, 6,25, 9,22, 2,29, 13,18, 5,26, 10,21];
+                return [...Array(size).keys()];
+            };
+            const seeds = getSeeds(n);
+            bracketMatches.value = []; let matchCounter = 1; let curSize = n / 2;
+            while(curSize >= 1) { let round = []; for(let i=0; i<curSize; i++) { round.push({ id: `se_${curSize}_${i}`, player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ }); } bracketMatches.value.push(round); curSize /= 2; }
+            for(let i=0; i<n/2; i++) {
+                const p1 = paddedPlayers[seeds[i*2]]; const p2 = paddedPlayers[seeds[i*2+1]]; const isBye = !p1 || !p2;
+                bracketMatches.value[0][i].player1 = p1; bracketMatches.value[0][i].player2 = p2; bracketMatches.value[0][i].isBye = isBye;
+                if (isBye) { bracketMatches.value[0][i].player1Score = p1 ? 1 : 0; bracketMatches.value[0][i].player2Score = p2 ? 1 : 0; }
             }
-            return valid;
-        });
-
-        const nextBracketRound = () => {
-            currentBracketRoundIndex.value++;
-            if (currentBracketRoundIndex.value >= bracketMatches.value.length) {
-                status.value = 'champion_crowned';
-                updateFinalChampions();
+            normalBronzeMatch.value = { id: 'bronze', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ };
+            bracketRoundNames.value = [];
+            for (let i = 0; i < bracketMatches.value.length; i++) {
+                let matchesInRound = bracketMatches.value[i].length;
+                if (matchesInRound === 1) bracketRoundNames.value.push('總決賽 (Finals)'); else if (matchesInRound === 2) bracketRoundNames.value.push('準決賽 (Semifinals)'); else if (matchesInRound === 4) bracketRoundNames.value.push('八強賽 (Quarterfinals)'); else if (matchesInRound === 8) bracketRoundNames.value.push('十六強賽 (Round of 16)'); else bracketRoundNames.value.push(`淘汰賽 R${i+1}`);
             }
-            saveToLocalStorage();
+            status.value = 'bracket';
+            onScoreChange();
         };
 
         const initRedemptionBracket = () => {
             let n = 4; while (n < players.value.length) n *= 2;
             let paddedPlayers = [...players.value]; while (paddedPlayers.length < n) paddedPlayers.push(null);
-            const getSeeds = (size) => {
-                if (size === 4) return [0,3, 1,2]; if (size === 8) return [0,7, 3,4, 1,6, 2,5]; if (size === 16) return [0,15, 7,8, 3,12, 4,11, 1,14, 6,9, 2,13, 5,10]; return [...Array(size).keys()];
-            };
+            const getSeeds = (size) => { if (size === 4) return [0,3, 1,2]; if (size === 8) return [0,7, 3,4, 1,6, 2,5]; if (size === 16) return [0,15, 7,8, 3,12, 4,11, 1,14, 6,9, 2,13, 5,10]; return [...Array(size).keys()]; };
             const seeds = getSeeds(n);
-
             wbMatches.value = []; lbMatches.value = []; gfMatch.value = null; redemptionBronzeMatch.value = null;
-
             let curSize = n / 2; while(curSize >= 1) { let round = []; for(let i=0; i<curSize; i++) { round.push({ id: `wb_${curSize}_${i}`, player1: null, player2: null, player1Score: null, player2Score: null, isBye: false }); } wbMatches.value.push(round); curSize /= 2; }
             curSize = n / 4; while(curSize >= 1) { let round = []; for(let i=0; i<curSize; i++) { round.push({ id: `lb_${curSize}_${i}`, player1: null, player2: null, player1Score: null, player2Score: null, isBye: false }); } lbMatches.value.push(round); curSize /= 2; }
-
             let matchCounter = 1; const R = wbMatches.value.length;
             for(let phase=0; phase<=R; phase++) {
-                if (phase < R) {
-                    wbMatches.value[phase].forEach(m => { m.matchNumber = matchCounter++; });
-                    if (phase > 0) lbMatches.value[phase-1].forEach(m => { m.matchNumber = matchCounter++; });
-                } else if (phase === R) {
-                    redemptionBronzeMatch.value = { id: 'r_bronze', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ };
-                    gfMatch.value = { id: 'gf', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ };
-                }
+                if (phase < R) { wbMatches.value[phase].forEach(m => { m.matchNumber = matchCounter++; }); if (phase > 0) lbMatches.value[phase-1].forEach(m => { m.matchNumber = matchCounter++; }); } 
+                else if (phase === R) { redemptionBronzeMatch.value = { id: 'r_bronze', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ }; gfMatch.value = { id: 'gf', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ }; }
             }
-
             for(let i=0; i<n/2; i++) {
-                const p1 = paddedPlayers[seeds[i*2]]; const p2 = paddedPlayers[seeds[i*2+1]];
-                const isBye = !p1 || !p2;
+                const p1 = paddedPlayers[seeds[i*2]]; const p2 = paddedPlayers[seeds[i*2+1]]; const isBye = !p1 || !p2;
                 wbMatches.value[0][i].player1 = p1; wbMatches.value[0][i].player2 = p2; wbMatches.value[0][i].isBye = isBye;
                 if (isBye) { wbMatches.value[0][i].player1Score = p1 ? 1 : 0; wbMatches.value[0][i].player2Score = p2 ? 1 : 0; }
             }
-            currentRedemptionPhase.value = 0; status.value = 'redemption_bracket';
+            status.value = 'redemption_bracket';
             onScoreChange();
         };
 
-        const canProgressRedemption = computed(() => {
-            if (status.value !== 'redemption_bracket') return false;
-            const phase = currentRedemptionPhase.value; const R = wbMatches.value.length;
-            const isValid = (m) => m.isBye || (m.player1 && m.player2 && typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '');
-            if (phase < R) {
-                if (!wbMatches.value[phase].every(isValid)) return false;
-                if (phase > 0 && !lbMatches.value[phase - 1].every(isValid)) return false;
-                return true;
-            } else if (phase === R) { return isValid(gfMatch.value) && isValid(redemptionBronzeMatch.value); }
-            return false;
+        const reversedBracketMatches = computed(() => [...bracketMatches.value].reverse());
+        const reversedBracketRoundNames = computed(() => [...bracketRoundNames.value].reverse());
+        const reversedRoundIndexToReal = (rIdx) => bracketMatches.value.length - 1 - rIdx;
+        const reversedWbMatches = computed(() => [...wbMatches.value].reverse());
+        const reversedLbMatches = computed(() => [...lbMatches.value].reverse());
+
+        const open3v3Modal = (match) => {
+            if (isSpectator.value || match.isBye) return;
+            if (!match.t1State) { match.t1State = match.player1.members.map(m => ({ ...m, alive: true })); match.t2State = match.player2.members.map(m => ({ ...m, alive: true })); match.subMatches = []; }
+            active3v3Match.value = match;
+            selectedT1Member.value = match.t1State.find(m => m.alive) || null; selectedT2Member.value = match.t2State.find(m => m.alive) || null;
+            t1BoutScore.value = null; t2BoutScore.value = null;
+        };
+
+        const t1AllDead = computed(() => active3v3Match.value?.t1State.every(m => !m.alive) || false);
+        const t2AllDead = computed(() => active3v3Match.value?.t2State.every(m => !m.alive) || false);
+
+        const submitBout = () => {
+            if (t1BoutScore.value === null || t2BoutScore.value === null || t1BoutScore.value === t2BoutScore.value) { alert('請輸入有效且沒有平局的比分！'); return; }
+            let winnerName = '';
+            if (t1BoutScore.value > t2BoutScore.value) { selectedT2Member.value.alive = false; winnerName = selectedT1Member.value.name; } 
+            else { selectedT1Member.value.alive = false; winnerName = selectedT2Member.value.name; }
+            active3v3Match.value.subMatches.push({ t1Player: selectedT1Member.value.name, t2Player: selectedT2Member.value.name, t1Score: t1BoutScore.value, t2Score: t2BoutScore.value, winner: winnerName });
+            if (t1AllDead.value) { active3v3Match.value.player1Score = 0; active3v3Match.value.player2Score = 1; onScoreChange(active3v3Match.value); } 
+            else if (t2AllDead.value) { active3v3Match.value.player1Score = 1; active3v3Match.value.player2Score = 0; onScoreChange(active3v3Match.value); } 
+            else { selectedT1Member.value = active3v3Match.value.t1State.find(m => m.alive) || null; selectedT2Member.value = active3v3Match.value.t2State.find(m => m.alive) || null; t1BoutScore.value = null; t2BoutScore.value = null; saveToLocalStorage(); }
+        };
+        const close3v3Modal = () => { active3v3Match.value = null; };
+
+        // 用於自動偵測是否已全部結算
+        const allBracketMatchesScored = computed(() => {
+            if (!['bracket', 'champion_crowned'].includes(status.value)) return false;
+            let valid = true;
+            bracketMatches.value.forEach(round => round.forEach(m => { if (!isMatchFinished(m)) valid = false; }));
+            if (normalBronzeMatch.value && !isMatchFinished(normalBronzeMatch.value)) valid = false;
+            return valid;
         });
 
-        const nextRedemptionPhase = () => {
-            currentRedemptionPhase.value++;
-            if (currentRedemptionPhase.value > wbMatches.value.length) {
-                status.value = 'champion_crowned';
-                updateFinalChampions();
-            }
-            saveToLocalStorage();
-        };
+        const canProgressRedemption = computed(() => {
+            if (!['redemption_bracket', 'champion_crowned'].includes(status.value)) return false;
+            let valid = true;
+            wbMatches.value.forEach(r => r.forEach(m => { if(!isMatchFinished(m)) valid = false; }));
+            lbMatches.value.forEach(r => r.forEach(m => { if(!isMatchFinished(m)) valid = false; }));
+            if (gfMatch.value && !isMatchFinished(gfMatch.value)) valid = false;
+            if (redemptionBronzeMatch.value && !isMatchFinished(redemptionBronzeMatch.value)) valid = false;
+            return valid;
+        });
 
         const finalPlayerStats = computed(() => {
             let sorted = [...players.value];
@@ -1215,8 +1359,7 @@ createApp({
                      const rankB = b === finalChampion.value ? 1 : (b === finalRunnerUp.value ? 2 : (b === finalThird.value ? 3 : (b === finalFourth.value ? 4 : 5)));
                      if (rankA !== rankB) return rankA - rankB;
                      const netA = a.totalPoints - a.pointsAgainst; const netB = b.totalPoints - b.pointsAgainst;
-                     if (netB !== netA) return netB - netA;
-                     return b.totalPoints - a.totalPoints;
+                     if (netB !== netA) return netB - netA; return b.totalPoints - a.totalPoints;
                  });
             }
             return sorted;
@@ -1226,15 +1369,12 @@ createApp({
             let log = [];
             const addMatch = (m, stage) => {
                 if (m && !m.isBye && m.player1 && m.player2 && typeof m.player1Score === 'number' && typeof m.player2Score === 'number' && m.player1Score !== '' && m.player2Score !== '') {
-                    log.push({
-                        number: m.matchNumber, stage: stage, p1: m.player1.name, p2: m.player2.name, s1: m.player1Score, s2: m.player2Score,
-                        winner: m.player1Score > m.player2Score ? m.player1.name : m.player2.name
-                    });
+                    log.push({ number: m.matchNumber, stage: stage, p1: m.player1.name, p2: m.player2.name, s1: m.player1Score, s2: m.player2Score, winner: m.player1Score > m.player2Score ? m.player1.name : m.player2.name });
                 }
             };
-            allSwissMatches.value.forEach(m => addMatch(m, '瑞士制初賽'));
-            rrGroups.value.forEach(g => { const sName = tournamentMode.value === 'super_round_robin' ? '極限車輪戰' : '小組循環賽'; g.matches.forEach(m => addMatch(m, sName)); });
-            bracketMatches.value.forEach((round, idx) => { const stageName = bracketRoundNames.value[idx] || `決賽圈 R${idx+1}`; round.forEach(m => addMatch(m, stageName)); });
+            allSwissMatches.value.forEach(m => addMatch(m, '瑞士制'));
+            rrGroups.value.forEach(g => { g.matches.forEach(m => addMatch(m, tournamentMode.value==='super_round_robin'?'車輪戰':'循環賽')); });
+            bracketMatches.value.forEach((round, idx) => { round.forEach(m => addMatch(m, bracketRoundNames.value[idx])); });
             if (normalBronzeMatch.value) addMatch(normalBronzeMatch.value, '季軍戰');
             wbMatches.value.forEach((round, idx) => round.forEach(m => addMatch(m, `勝部 R${idx+1}`)));
             lbMatches.value.forEach((round, idx) => round.forEach(m => addMatch(m, `敗部 R${idx+1}`)));
@@ -1243,8 +1383,7 @@ createApp({
             return log.sort((a, b) => a.number - b.number);
         });
 
-        const STORAGE_KEY = 'beyblade_tournament_data_v1';
-        
+        const STORAGE_KEY = 'beyblade_tournament_data_v2';
         const saveToLocalStorage = () => {
             const stateToSave = {
                 status: status.value, tournamentMode: tournamentMode.value, players: players.value,
@@ -1253,129 +1392,85 @@ createApp({
                 wbMatches: wbMatches.value, lbMatches: lbMatches.value, gfMatch: gfMatch.value, redemptionBronzeMatch: redemptionBronzeMatch.value, currentRedemptionPhase: currentRedemptionPhase.value,
                 finalChampion: finalChampion.value, finalRunnerUp: finalRunnerUp.value, finalThird: finalThird.value, finalFourth: finalFourth.value
             };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-            broadcastState(stateToSave); // 修改任何東西後立即廣播
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave)); broadcastState(stateToSave);
         };
-
         const loadFromStateObject = (parsed) => {
             status.value = parsed.status || 'setup'; tournamentMode.value = parsed.tournamentMode || 'swiss';
             currentRound.value = parsed.currentRound || 1; currentBracketRoundIndex.value = parsed.currentBracketRoundIndex || 0;
             currentRedemptionPhase.value = parsed.currentRedemptionPhase || 0; bracketRoundNames.value = parsed.bracketRoundNames || [];
-            
             players.value = parsed.players || [];
             const link = (pObj) => pObj ? (players.value.find(p => p.id === pObj.id) || pObj) : null;
-
             if (parsed.allSwissMatches) { parsed.allSwissMatches.forEach(m => { m.player1 = link(m.player1); m.player2 = link(m.player2); }); allSwissMatches.value = parsed.allSwissMatches; }
-            if (parsed.rrGroups) {
-                parsed.rrGroups.forEach(g => { if(g.players) g.players = g.players.map(link); g.matches.forEach(m => { m.player1 = link(m.player1); m.player2 = link(m.player2); }); });
-                rrGroups.value = parsed.rrGroups;
-            }
-            const linkBracket = (bracket) => {
-                if (!bracket) return []; bracket.forEach(round => round.forEach(m => { m.player1 = link(m.player1); m.player2 = link(m.player2); })); return bracket;
-            };
+            if (parsed.rrGroups) { parsed.rrGroups.forEach(g => { if(g.players) g.players = g.players.map(link); g.matches.forEach(m => { m.player1 = link(m.player1); m.player2 = link(m.player2); }); }); rrGroups.value = parsed.rrGroups; }
+            const linkBracket = (bracket) => { if (!bracket) return []; bracket.forEach(round => round.forEach(m => { m.player1 = link(m.player1); m.player2 = link(m.player2); })); return bracket; };
             bracketMatches.value = linkBracket(parsed.bracketMatches); wbMatches.value = linkBracket(parsed.wbMatches); lbMatches.value = linkBracket(parsed.lbMatches);
-
             if (parsed.normalBronzeMatch) { normalBronzeMatch.value = parsed.normalBronzeMatch; normalBronzeMatch.value.player1 = link(normalBronzeMatch.value.player1); normalBronzeMatch.value.player2 = link(normalBronzeMatch.value.player2); }
             if (parsed.gfMatch) { gfMatch.value = parsed.gfMatch; gfMatch.value.player1 = link(gfMatch.value.player1); gfMatch.value.player2 = link(gfMatch.value.player2); }
             if (parsed.redemptionBronzeMatch) { redemptionBronzeMatch.value = parsed.redemptionBronzeMatch; redemptionBronzeMatch.value.player1 = link(redemptionBronzeMatch.value.player1); redemptionBronzeMatch.value.player2 = link(redemptionBronzeMatch.value.player2); }
-
-            finalChampion.value = link(parsed.finalChampion); finalRunnerUp.value = link(parsed.finalRunnerUp);
-            finalThird.value = link(parsed.finalThird); finalFourth.value = link(parsed.finalFourth);
-            
-            onScoreChange(); // 載入完畢後自動重算一次
+            finalChampion.value = link(parsed.finalChampion); finalRunnerUp.value = link(parsed.finalRunnerUp); finalThird.value = link(parsed.finalThird); finalFourth.value = link(parsed.finalFourth);
+            onScoreChange();
         };
-
-        const loadFromLocalStorage = () => {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) { try { loadFromStateObject(JSON.parse(saved)); } catch (e) { console.error("Local storage 解析失敗", e); } }
+        const loadFromLocalStorage = () => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { loadFromStateObject(JSON.parse(saved)); } catch (e) { } } };
+        const broadcastState = (state) => { if (isSpectator.value) return; const dataStr = JSON.stringify(state); activeConnections.value.forEach(conn => { if (conn.open) conn.send(dataStr); }); };
+        const resetTournamentState = () => {
+            players.value.forEach(p => { p.played = 0; p.wins = 0; p.losses = 0; p.totalPoints = 0; p.pointsAgainst = 0; p.advanced = false; p.eliminated = false; });
+            allSwissMatches.value = []; rrGroups.value = []; bracketMatches.value = []; normalBronzeMatch.value = null;
+            wbMatches.value = []; lbMatches.value = []; gfMatch.value = null; redemptionBronzeMatch.value = null;
+            currentRound.value = 1; currentBracketRoundIndex.value = 0; currentRedemptionPhase.value = 0;
+            finalChampion.value = null; finalRunnerUp.value = null; finalThird.value = null; finalFourth.value = null;
         };
-
-        const broadcastState = (state) => {
-            if (isSpectator.value) return;
-            const dataStr = JSON.stringify(state);
-            activeConnections.value.forEach(conn => { if (conn.open) conn.send(dataStr); });
+        const returnToSetup = () => { if (confirm('確定要返回首頁嗎？')) { resetTournamentState(); status.value = 'setup'; saveToLocalStorage(); } };
+        const toggleMode = () => {
+            const modes = ['swiss', 'round_robin', 'super_round_robin', 'redemption', 'single_elimination', 'team_3v3'];
+            const nextMode = modes[(modes.indexOf(tournamentMode.value) + 1) % modes.length];
+            if (confirm(`切換賽制進度將會遺失，確定嗎？`)) { tournamentMode.value = nextMode; resetTournamentState(); startTournament(); saveToLocalStorage(); }
         };
+        const resetKeepPlayers = () => { if (confirm('保留目前名單，重新開始比賽嗎？')) { resetTournamentState(); startTournament(); saveToLocalStorage(); } };
+        const resetAll = () => { if (confirm('包含選手名單在內的所有資料都將被清空嗎？')) { players.value = []; resetTournamentState(); status.value = 'setup'; saveToLocalStorage(); } };
 
         const initPeer = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const watchId = urlParams.get('watch');
-
             if (watchId) {
                 isSpectator.value = true;
-                if (typeof Peer === 'undefined') { alert('系統提示：觀眾連線模組無法載入。\n請檢查是否使用了廣告阻擋器。'); return; }
-                
-                let peer;
-                let conn;
-
+                if (typeof Peer === 'undefined') return;
+                let peer; let conn;
                 const connectToHost = () => {
-                    if (conn) conn.close();
-                    conn = peer.connect(watchId, { reliable: true });
-                    
+                    if (conn) conn.close(); conn = peer.connect(watchId, { reliable: true });
                     conn.on('open', () => { connectionStatus.value = 'connected'; });
                     conn.on('data', (data) => { try { loadFromStateObject(JSON.parse(data)); } catch(e) {} });
-                    
-                    conn.on('close', () => {
-                        connectionStatus.value = 'disconnected';
-                        setTimeout(connectToHost, 3000); // 斷線後每3秒自動重新挑戰連回主控端
-                    });
-                    conn.on('error', () => {
-                        connectionStatus.value = 'disconnected';
-                        setTimeout(connectToHost, 3000);
-                    });
+                    conn.on('close', () => { connectionStatus.value = 'disconnected'; setTimeout(connectToHost, 3000); });
+                    conn.on('error', () => { connectionStatus.value = 'disconnected'; setTimeout(connectToHost, 3000); });
                 };
-
-                try {
-                    peer = new Peer(peerConfig);
-                    peer.on('open', () => { connectToHost(); });
-                    peer.on('disconnected', () => {
-                        connectionStatus.value = 'disconnected';
-                        peer.reconnect();
-                    });
-                    peer.on('error', () => {
-                        connectionStatus.value = 'disconnected';
-                        setTimeout(() => { if (peer.disconnected) peer.reconnect(); }, 3000);
-                    });
-                } catch (error) {}
-                
+                try { peer = new Peer(peerConfig); peer.on('open', () => { connectToHost(); }); peer.on('disconnected', () => { connectionStatus.value = 'disconnected'; peer.reconnect(); }); peer.on('error', () => { connectionStatus.value = 'disconnected'; setTimeout(() => { if (peer.disconnected) peer.reconnect(); }, 3000); }); } catch (error) {}
             } else {
                 if (typeof Peer === 'undefined') return;
                 try {
                     const hostId = 'bey-' + Math.random().toString(36).substr(2, 9);
                     peerInstance.value = new Peer(hostId, peerConfig);
-                    
-                    peerInstance.value.on('open', (id) => {
-                        const watchUrl = window.location.origin + window.location.pathname + '?watch=' + id;
-                        qrImageUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(watchUrl)}`;
-                    });
-
-                    peerInstance.value.on('connection', (conn) => {
-                        activeConnections.value.push(conn);
-                        spectatorCount.value = activeConnections.value.length;
-                        conn.on('open', () => { saveToLocalStorage(); }); // 觀眾一連線就發送最新狀態
-                        conn.on('close', () => {
-                            activeConnections.value = activeConnections.value.filter(c => c !== conn);
-                            spectatorCount.value = activeConnections.value.length;
-                        });
-                    });
+                    peerInstance.value.on('open', (id) => { qrImageUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?watch=' + id)}`; });
+                    peerInstance.value.on('connection', (conn) => { activeConnections.value.push(conn); spectatorCount.value = activeConnections.value.length; conn.on('open', () => { saveToLocalStorage(); }); conn.on('close', () => { activeConnections.value = activeConnections.value.filter(c => c !== conn); spectatorCount.value = activeConnections.value.length; }); });
                 } catch (err) {}
             }
         };
 
         onMounted(() => { loadFromLocalStorage(); initPeer(); });
 
-        // 只在主控端修改時才寫入快取與發送
         watch([status, tournamentMode, players, currentRound, allSwissMatches, rrGroups, bracketMatches, currentBracketRoundIndex, normalBronzeMatch, wbMatches, lbMatches, gfMatch, redemptionBronzeMatch, currentRedemptionPhase, finalChampion],
-            () => { if (!isSpectator.value) saveToLocalStorage(); },
-            { deep: true }
+            () => { if (!isSpectator.value) saveToLocalStorage(); }, { deep: true }
         );
 
         return {
             status, tournamentMode, newPlayerName, players, currentRound, isSmallTournament, targetWins, targetLosses, expectedMatchesText,
-            bracketLayout, addPlayer, removePlayer, clearPlayerList, startTournament, totalPreliminaryMatches, onScoreChange,
+            bracketLayout, addPlayer, removePlayer, clearPlayerList, startTournament, onScoreChange,
             getGroupMatches, allSwissMatchesScored, nextRoundSwiss, forceFinishPhase, rrGroups, allRRMatchesScored, finishRoundRobin,
-            sortedPlayers, resetKeepPlayers, resetAll, returnToSetup, toggleMode,
-            bracketMatches, currentBracketRoundIndex, bracketRoundNames, startBracket, allBracketMatchesScored, nextBracketRound, normalBronzeMatch,
-            wbMatches, lbMatches, gfMatch, redemptionBronzeMatch, currentRedemptionPhase, canProgressRedemption, nextRedemptionPhase,
+            sortedPlayers, resetKeepPlayers, resetAll, returnToSetup, toggleMode, startBracket,
+            
+            newTeamMembers, addTeam, active3v3Match, selectedT1Member, selectedT2Member, t1BoutScore, t2BoutScore, open3v3Modal, close3v3Modal, submitBout, t1AllDead, t2AllDead,
+
+            bracketMatches, reversedBracketMatches, reversedBracketRoundNames, reversedRoundIndexToReal, currentBracketRoundIndex, bracketRoundNames, allBracketMatchesScored, normalBronzeMatch,
+            wbMatches, lbMatches, gfMatch, redemptionBronzeMatch, currentRedemptionPhase, canProgressRedemption, reversedWbMatches, reversedLbMatches,
+            
             finalChampion, finalRunnerUp, finalThird, finalFourth, finalPlayerStats, matchHistoryLog,
             isSpectator, showQrModal, qrImageUrl, spectatorCount, connectionStatus
         };
