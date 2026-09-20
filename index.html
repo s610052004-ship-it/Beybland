@@ -38,7 +38,6 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #374151; }
         
-        /* 增加自動彈出的滑順過渡效果 */
         .fade-enter-active, .fade-leave-active { transition: all 0.5s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(20px); }
     </style>
@@ -159,7 +158,6 @@
                     <span class="text-xs text-gray-500 peer-checked:text-orange-200">手動建立隊伍，樹狀單淘汰</span>
                 </div>
             </label>
-            <!-- 新增：隨機戰隊循環模式 -->
             <label class="cursor-pointer relative lg:col-span-2">
                 <input type="radio" value="random_team_rr" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-teal-950/40 peer-checked:border-teal-500 peer-checked:shadow-[0_0_15px_rgba(20,184,166,0.3)] transition-all flex flex-col items-center justify-center gap-2">
@@ -190,7 +188,6 @@
             
             <div v-if="!isSpectator" class="flex flex-col gap-3 justify-center w-full max-w-lg mx-auto bg-gray-900 p-5 rounded-2xl border border-gray-700 shadow-inner">
                 <input v-model="newPlayerName" @keyup.enter="addTeam" type="text" placeholder="輸入戰隊名稱 (例: 隊伍A)..." class="border border-gray-600 bg-gray-950 p-3 rounded-xl w-full focus:ring-2 focus:ring-orange-500 outline-none text-white text-center font-bold">
-                <!-- 手機版改為垂直堆疊，電腦版為橫排 -->
                 <div class="flex flex-col sm:flex-row gap-2">
                     <input v-model="newTeamMembers[0]" type="text" placeholder="隊員 1" class="border border-gray-600 bg-gray-950 p-2 rounded-lg flex-1 text-center text-white focus:ring-2 focus:ring-orange-500 outline-none w-full">
                     <input v-model="newTeamMembers[1]" type="text" placeholder="隊員 2" class="border border-gray-600 bg-gray-950 p-2 rounded-lg flex-1 text-center text-white focus:ring-2 focus:ring-orange-500 outline-none w-full">
@@ -236,6 +233,9 @@
                     <p class="text-amber-400 text-sm font-bold mt-2 mb-4 bg-amber-950/70 inline-block px-5 py-3 rounded-lg border border-amber-500">
                         ⚠️ 總人數剛好為 5 人時建議直接切換至「⚔️ 超級車輪戰」獲得最佳體驗！
                     </p>
+                </template>
+                <template v-else-if="players.length < 6 && tournamentMode === 'random_team_rr'">
+                    <p class="text-red-400 text-sm font-bold mt-2">⚠️ 隨機戰隊模式最少需 6 人方可產生隊伍</p>
                 </template>
                 <template v-else>
                     <button @click="startTournament" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-12 py-4 rounded-xl font-black text-xl hover:from-emerald-500 hover:to-teal-500 transition shadow-xl transform hover:scale-105 neon-glow-blue">🚀 隨機打亂並開始比賽</button>
@@ -628,9 +628,11 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- 敗部的連接線修正：與勝部一樣會分支收攏 -->
                             <div v-if="rIdx < reversedLbMatches.length - 1" class="flex w-full justify-around h-6 relative z-0">
                                 <div v-for="match in round" class="flex flex-col items-center w-full">
-                                    <div class="w-[2px] h-full bg-purple-600/40"></div>
+                                    <div class="w-[2px] h-2 bg-purple-600/40"></div>
+                                    <div class="w-[50%] h-4 border-t-[2px] border-r-[2px] border-l-[2px] border-purple-600/40 rounded-t-sm"></div>
                                 </div>
                             </div>
                         </template>
@@ -720,8 +722,8 @@
                             <tr class="bg-gray-800 text-gray-400">
                                 <th class="p-3 text-center w-16">名次</th>
                                 <th class="p-3">名稱</th>
-                                <th class="p-3 text-center text-emerald-400">總得分</th>
-                                <th class="p-3 text-center text-rose-400">總失分</th>
+                                <th v-if="tournamentMode !== 'team_3v3'" class="p-3 text-center text-emerald-400">總得分</th>
+                                <th v-if="tournamentMode !== 'team_3v3'" class="p-3 text-center text-rose-400">總失分</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -739,8 +741,8 @@
                                         ({{ player.members.map(m => m.name).join(', ') }})
                                     </span>
                                 </td>
-                                <td class="p-3 text-center font-black text-emerald-300">{{ player.totalPoints }}</td>
-                                <td class="p-3 text-center font-black text-rose-300">{{ player.pointsAgainst }}</td>
+                                <td v-if="tournamentMode !== 'team_3v3'" class="p-3 text-center font-black text-emerald-300">{{ player.totalPoints }}</td>
+                                <td v-if="tournamentMode !== 'team_3v3'" class="p-3 text-center font-black text-rose-300">{{ player.pointsAgainst }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -762,7 +764,6 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- 對於戰隊，顯示子賽事日誌；對於個人，顯示一般日誌 -->
                             <template v-for="log in matchHistoryLog" :key="log.number">
                                 <tr v-if="log.isTeamSubMatch" class="border-b border-gray-800/30 bg-gray-900/30 hover:bg-gray-800/50">
                                     <td class="p-3 text-center font-bold text-gray-500 text-xs">└ 戰隊子局</td>
@@ -776,7 +777,7 @@
                                     <td class="p-3 text-center font-black text-emerald-500 text-xs">🏅 {{ log.winner }}</td>
                                 </tr>
                                 <tr v-else class="border-b border-gray-800/60 hover:bg-gray-800/40">
-                                    <td class="p-3 text-center font-black text-cyan-500">#{{ log.number }}</td>
+                                    <td class="p-3 text-center font-black text-cyan-500">#{{ Math.floor(log.number) }}</td>
                                     <td class="p-3 text-center text-xs text-gray-400 bg-gray-900/50">{{ log.stage }}</td>
                                     <td class="p-3 text-right font-bold" :class="log.winner === log.p1 ? 'text-emerald-400' : 'text-gray-500'">{{ log.p1 }}</td>
                                     <td class="p-3 text-center font-black tracking-widest bg-black/20 rounded-lg">
@@ -1067,8 +1068,11 @@ createApp({
         const buildEliminationBracket = (participantList) => {
             let n = 2; while (n < participantList.length) n *= 2;
             let paddedPlayers = [...participantList]; while (paddedPlayers.length < n) paddedPlayers.push(null);
+            
             const getSeeds = (size) => {
-                if (size === 2) return [0,1]; if (size === 4) return [0,3, 1,2]; if (size === 8) return [0,7, 3,4, 1,6, 2,5];
+                if (size === 2) return [0,1];
+                if (size === 4) return [0,3, 1,2]; 
+                if (size === 8) return [0,7, 3,4, 1,6, 2,5];
                 if (size === 16) return [0,15, 7,8, 3,12, 4,11, 1,14, 6,9, 2,13, 5,10];
                 if (size === 32) return [0,31, 15,16, 7,24, 8,23, 3,28, 12,19, 4,27, 11,20, 1,30, 14,17, 6,25, 9,22, 2,29, 13,18, 5,26, 10,21];
                 return [...Array(size).keys()];
@@ -1111,31 +1115,46 @@ createApp({
                 for (let j = 0; j < currentRound.length; j += 2) {
                     const m1 = currentRound[j]; const m2 = currentRound[j+1];
                     const nextMatch = nextRound[Math.floor(j/2)];
-                    const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
+                    
+                    const m1Finished = isMatchFinished(m1);
+                    const m2Finished = isMatchFinished(m2);
                     const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
-                    const p1Changed = nextMatch.player1?.id !== w1Info.p?.id; const p2Changed = nextMatch.player2?.id !== w2Info.p?.id;
-                    nextMatch.player1 = w1Info.p; nextMatch.player1Seed = w1Info.s; nextMatch.player2 = w2Info.p; nextMatch.player2Seed = w2Info.s;
+                    
+                    const p1Changed = nextMatch.player1?.id !== w1Info.p?.id;
+                    const p2Changed = nextMatch.player2?.id !== w2Info.p?.id;
+                    nextMatch.player1 = w1Info.p; nextMatch.player1Seed = w1Info.s;
+                    nextMatch.player2 = w2Info.p; nextMatch.player2Seed = w2Info.s;
 
                     if (m1Finished && m2Finished) {
-                        const isBye = !w1Info.p || !w2Info.p; nextMatch.isBye = isBye;
+                        const isBye = !w1Info.p || !w2Info.p;
+                        nextMatch.isBye = isBye;
                         if (isBye) { nextMatch.player1Score = w1Info.p ? 1 : 0; nextMatch.player2Score = w2Info.p ? 1 : 0; } 
                         else if (p1Changed || p2Changed) { nextMatch.player1Score = null; nextMatch.player2Score = null; }
-                    } else { nextMatch.isBye = false; if (p1Changed || p2Changed) { nextMatch.player1Score = null; nextMatch.player2Score = null; } }
+                    } else {
+                        nextMatch.isBye = false; // 只有在確定無選手上來時才設為 Bye，否則維持等待中(TBD)
+                        if (p1Changed || p2Changed) { nextMatch.player1Score = null; nextMatch.player2Score = null; }
+                    }
                 }
             }
             if (bracketMatches.value.length > 1 && normalBronzeMatch.value) {
                 const sf = bracketMatches.value[bracketMatches.value.length - 2];
                 const m1 = sf[0]; const m2 = sf[1];
                 const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
+                
                 const loser1 = getLoserInfo(m1).p; const loser2 = getLoserInfo(m2).p;
-                const p1Changed = normalBronzeMatch.value.player1?.id !== loser1?.id; const p2Changed = normalBronzeMatch.value.player2?.id !== loser2?.id;
+                const p1Changed = normalBronzeMatch.value.player1?.id !== loser1?.id;
+                const p2Changed = normalBronzeMatch.value.player2?.id !== loser2?.id;
                 normalBronzeMatch.value.player1 = loser1; normalBronzeMatch.value.player2 = loser2;
                 
                 if (m1Finished && m2Finished) {
-                    const isBye = !loser1 || !loser2; normalBronzeMatch.value.isBye = isBye;
+                    const isBye = !loser1 || !loser2;
+                    normalBronzeMatch.value.isBye = isBye;
                     if (isBye) { normalBronzeMatch.value.player1Score = loser1 ? 1 : 0; normalBronzeMatch.value.player2Score = loser2 ? 1 : 0; } 
                     else if (p1Changed || p2Changed) { normalBronzeMatch.value.player1Score = null; normalBronzeMatch.value.player2Score = null; }
-                } else { normalBronzeMatch.value.isBye = false; if (p1Changed || p2Changed) { normalBronzeMatch.value.player1Score = null; normalBronzeMatch.value.player2Score = null; } }
+                } else {
+                    normalBronzeMatch.value.isBye = false;
+                    if (p1Changed || p2Changed) { normalBronzeMatch.value.player1Score = null; normalBronzeMatch.value.player2Score = null; }
+                }
             }
         };
 
@@ -1152,20 +1171,28 @@ createApp({
                         const p1Changed = nextWb[i/2].player1?.id !== w1Info.p?.id; const p2Changed = nextWb[i/2].player2?.id !== w2Info.p?.id;
                         nextWb[i/2].player1 = w1Info.p; nextWb[i/2].player2 = w2Info.p;
                         if (m1Finished && m2Finished) {
-                            const isBye = !w1Info.p || !w2Info.p; nextWb[i/2].isBye = isBye;
+                            const isBye = !w1Info.p || !w2Info.p;
+                            nextWb[i/2].isBye = isBye;
                             if(isBye) { nextWb[i/2].player1Score = w1Info.p ? 1 : 0; nextWb[i/2].player2Score = w2Info.p ? 1 : 0; }
                             else if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; }
-                        } else { nextWb[i/2].isBye = false; if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; } }
+                        } else {
+                            nextWb[i/2].isBye = false;
+                            if (p1Changed || p2Changed) { nextWb[i/2].player1Score = null; nextWb[i/2].player2Score = null; }
+                        }
                     }
                     if (phase === 0 && nextLbR0) {
                         const l1 = getLoserInfo(m1).p; const l2 = getLoserInfo(m2).p;
                         const p1Changed = nextLbR0[i/2].player1?.id !== l1?.id; const p2Changed = nextLbR0[i/2].player2?.id !== l2?.id;
                         nextLbR0[i/2].player1 = l1; nextLbR0[i/2].player2 = l2;
                         if (m1Finished && m2Finished) {
-                            const isBye = !l1 || !l2; nextLbR0[i/2].isBye = isBye;
+                            const isBye = !l1 || !l2;
+                            nextLbR0[i/2].isBye = isBye;
                             if(isBye) { nextLbR0[i/2].player1Score = l1 ? 1 : 0; nextLbR0[i/2].player2Score = l2 ? 1 : 0; }
                             else if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; }
-                        } else { nextLbR0[i/2].isBye = false; if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; } }
+                        } else {
+                            nextLbR0[i/2].isBye = false;
+                            if (p1Changed || p2Changed) { nextLbR0[i/2].player1Score = null; nextLbR0[i/2].player2Score = null; }
+                        }
                     }
                 }
                 if (phase > 0) {
@@ -1178,10 +1205,14 @@ createApp({
                             const p1Changed = nextLb[i/2].player1?.id !== w1Info.p?.id; const p2Changed = nextLb[i/2].player2?.id !== w2Info.p?.id;
                             nextLb[i/2].player1 = w1Info.p; nextLb[i/2].player2 = w2Info.p;
                             if (m1Finished && m2Finished) {
-                                const isBye = !w1Info.p || !w2Info.p; nextLb[i/2].isBye = isBye;
+                                const isBye = !w1Info.p || !w2Info.p;
+                                nextLb[i/2].isBye = isBye;
                                 if(isBye) { nextLb[i/2].player1Score = w1Info.p ? 1 : 0; nextLb[i/2].player2Score = w2Info.p ? 1 : 0; }
                                 else if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; }
-                            } else { nextLb[i/2].isBye = false; if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; } }
+                            } else {
+                                nextLb[i/2].isBye = false;
+                                if (p1Changed || p2Changed) { nextLb[i/2].player1Score = null; nextLb[i/2].player2Score = null; }
+                            }
                         }
                     }
                 }
@@ -1194,20 +1225,28 @@ createApp({
                     gfMatch.value.player1 = wChamp; gfMatch.value.player2 = lChamp;
                     
                     if (m1Finished && m2Finished) {
-                        const isBye = !wChamp || !lChamp; gfMatch.value.isBye = isBye;
+                        const isBye = !wChamp || !lChamp;
+                        gfMatch.value.isBye = isBye;
                         if (isBye) { gfMatch.value.player1Score = wChamp ? 1 : 0; gfMatch.value.player2Score = lChamp ? 1 : 0; } 
                         else if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
-                    } else { gfMatch.value.isBye = false; if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; } }
+                    } else {
+                        gfMatch.value.isBye = false;
+                        if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
+                    }
                     
                     const wLoser = getLoserInfo(m1Wb).p; const lLoser = m2Lb ? getLoserInfo(m2Lb).p : null;
                     const rzP1Changed = redemptionBronzeMatch.value.player1?.id !== wLoser?.id; const rzP2Changed = redemptionBronzeMatch.value.player2?.id !== lLoser?.id;
                     redemptionBronzeMatch.value.player1 = wLoser; redemptionBronzeMatch.value.player2 = lLoser;
                     
                     if (m1Finished && m2Finished) {
-                        const isBye = !wLoser || !lLoser; redemptionBronzeMatch.value.isBye = isBye;
+                        const isBye = !wLoser || !lLoser;
+                        redemptionBronzeMatch.value.isBye = isBye;
                         if (isBye) { redemptionBronzeMatch.value.player1Score = wLoser ? 1 : 0; redemptionBronzeMatch.value.player2Score = lLoser ? 1 : 0; } 
                         else if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; }
-                    } else { redemptionBronzeMatch.value.isBye = false; if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; } }
+                    } else {
+                        redemptionBronzeMatch.value.isBye = false;
+                        if (rzP1Changed || rzP2Changed) { redemptionBronzeMatch.value.player1Score = null; redemptionBronzeMatch.value.player2Score = null; }
+                    }
                 }
             }
         };
@@ -1360,10 +1399,38 @@ createApp({
 
         const startBracket = (sizeOrType) => {
             let participantList = [];
-            if (sizeOrType === 'advanced') { participantList = sortedPlayers.value.filter(p => p.advanced); } 
-            else { participantList = sortedPlayers.value.slice(0, sizeOrType); }
+            if (sizeOrType === 'advanced') {
+                participantList = sortedPlayers.value.filter(p => p.advanced);
+            } else {
+                participantList = sortedPlayers.value.slice(0, sizeOrType);
+            }
             if (participantList.length < 2) { alert('晉級人數不足，無法啟動決賽圈！'); return; }
-            buildEliminationBracket(participantList); saveToLocalStorage();
+            buildEliminationBracket(participantList);
+            saveToLocalStorage();
+        };
+
+        const initSingleEliminationBracket = () => { buildEliminationBracket(players.value); };
+
+        const initRedemptionBracket = () => {
+            let n = 4; while (n < players.value.length) n *= 2;
+            let paddedPlayers = [...players.value]; while (paddedPlayers.length < n) paddedPlayers.push(null);
+            const getSeeds = (size) => { if (size === 4) return [0,3, 1,2]; if (size === 8) return [0,7, 3,4, 1,6, 2,5]; if (size === 16) return [0,15, 7,8, 3,12, 4,11, 1,14, 6,9, 2,13, 5,10]; return [...Array(size).keys()]; };
+            const seeds = getSeeds(n);
+            wbMatches.value = []; lbMatches.value = []; gfMatch.value = null; redemptionBronzeMatch.value = null;
+            let curSize = n / 2; while(curSize >= 1) { let round = []; for(let i=0; i<curSize; i++) { round.push({ id: `wb_${curSize}_${i}`, player1: null, player2: null, player1Score: null, player2Score: null, isBye: false }); } wbMatches.value.push(round); curSize /= 2; }
+            curSize = n / 4; while(curSize >= 1) { let round = []; for(let i=0; i<curSize; i++) { round.push({ id: `lb_${curSize}_${i}`, player1: null, player2: null, player1Score: null, player2Score: null, isBye: false }); } lbMatches.value.push(round); curSize /= 2; }
+            let matchCounter = 1; const R = wbMatches.value.length;
+            for(let phase=0; phase<=R; phase++) {
+                if (phase < R) { wbMatches.value[phase].forEach(m => { m.matchNumber = matchCounter++; }); if (phase > 0) lbMatches.value[phase-1].forEach(m => { m.matchNumber = matchCounter++; }); } 
+                else if (phase === R) { redemptionBronzeMatch.value = { id: 'r_bronze', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ }; gfMatch.value = { id: 'gf', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ }; }
+            }
+            for(let i=0; i<n/2; i++) {
+                const p1 = paddedPlayers[seeds[i*2]]; const p2 = paddedPlayers[seeds[i*2+1]]; const isBye = !p1 || !p2;
+                wbMatches.value[0][i].player1 = p1; wbMatches.value[0][i].player2 = p2; wbMatches.value[0][i].isBye = isBye;
+                if (isBye) { wbMatches.value[0][i].player1Score = p1 ? 1 : 0; wbMatches.value[0][i].player2Score = p2 ? 1 : 0; }
+            }
+            status.value = 'redemption_bracket';
+            onScoreChange();
         };
 
         const reversedBracketMatches = computed(() => [...bracketMatches.value].reverse());
@@ -1395,6 +1462,7 @@ createApp({
         };
         const close3v3Modal = () => { active3v3Match.value = null; };
 
+        // 用於自動偵測是否已全部結算
         const allBracketMatchesScored = computed(() => {
             if (!['bracket', 'champion_crowned'].includes(status.value)) return false;
             let valid = true;
