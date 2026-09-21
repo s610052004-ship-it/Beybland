@@ -2,8 +2,14 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BEYBLADE X 賽事管理系統</title>
+    
+    <!-- PWA Web App Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#030712">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -41,11 +47,36 @@
         .scroll-touch { -webkit-overflow-scrolling: touch; }
         .fade-enter-active, .fade-leave-active { transition: all 0.4s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(20px); }
+        
+        /* 動畫特效 */
+        .shuffle-item { transition: all 0.1s ease-in-out; }
     </style>
 </head>
 <body class="bg-neon-bg text-gray-200 font-sans min-h-screen p-4 md:p-8 selection:bg-neon-blue selection:text-black relative pb-32">
 
+<!-- 註冊 Service Worker -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => console.log('ServiceWorker 註冊成功:', registration.scope))
+                .catch(error => console.log('ServiceWorker 註冊失敗:', error));
+        });
+    }
+</script>
+
 <div id="app" v-cloak class="max-w-[98%] mx-auto glass-panel p-4 md:p-8 rounded-2xl border border-gray-800 shadow-2xl relative">
+
+    <!-- 1.5 秒滾動翻牌動畫 Overlay -->
+    <div v-if="isShuffling" class="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
+        <div class="text-7xl mb-6 animate-spin">🎲</div>
+        <h2 class="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-8 tracking-widest uppercase animate-pulse">隨機洗牌配對中...</h2>
+        <div class="flex flex-wrap justify-center max-w-3xl gap-3 px-4">
+            <span v-for="(name, i) in shufflingNames" :key="i" class="shuffle-item bg-gray-800 border border-gray-600 text-gray-200 px-4 py-2 rounded-xl text-lg font-bold shadow-lg">
+                {{ name }}
+            </span>
+        </div>
+    </div>
 
     <!-- 頂部即時廣播狀態與 QR Code 按鈕 -->
     <div class="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-3 z-50">
@@ -122,13 +153,22 @@
 
     <!-- Setup View -->
     <div v-if="status === 'setup'" class="space-y-6 flex flex-col items-center text-center">
-        <!-- 賽制選單：優化為 3x3 網格排列 -->
+        <!-- 賽制選單：優化為 3x3 網格排列 (依照指定順序) -->
         <div class="w-full max-w-6xl bg-gray-900/80 p-3 rounded-2xl border border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" :class="{'opacity-50 pointer-events-none': isSpectator}">
+            
+            <!-- Row 1 -->
             <label class="cursor-pointer relative">
                 <input type="radio" value="swiss" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-cyan-950/50 peer-checked:border-neon-blue peer-checked:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all flex flex-col items-center justify-center gap-2">
                     <span class="text-lg font-black text-gray-400 peer-checked:text-neon-blue">📊 瑞士制</span>
                     <span class="text-xs text-gray-500 peer-checked:text-cyan-300">同戰績配對，達標即晉級</span>
+                </div>
+            </label>
+            <label class="cursor-pointer relative">
+                <input type="radio" value="single_elimination" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
+                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-blue-950/40 peer-checked:border-blue-500 peer-checked:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all flex flex-col items-center justify-center gap-2">
+                    <span class="text-lg font-black text-gray-400 peer-checked:text-blue-500">🏆 經典單淘汰</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-blue-200">動態樹狀圖，一戰定生死</span>
                 </div>
             </label>
             <label class="cursor-pointer relative">
@@ -138,26 +178,20 @@
                     <span class="text-xs text-gray-500 peer-checked:text-amber-200">依人數拆分小組打滿內戰</span>
                 </div>
             </label>
-            <label class="cursor-pointer relative">
-                <input type="radio" value="super_round_robin" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
-                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-fuchsia-950/40 peer-checked:border-neon-purple peer-checked:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all flex flex-col items-center justify-center gap-2">
-                    <span class="text-lg font-black text-gray-400 peer-checked:text-neon-purple">⚔️ 超級車輪戰</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-fuchsia-200">全體大亂鬥！算總積分</span>
-                </div>
-            </label>
-            
-            <label class="cursor-pointer relative">
-                <input type="radio" value="single_elimination" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
-                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-blue-950/40 peer-checked:border-blue-500 peer-checked:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all flex flex-col items-center justify-center gap-2">
-                    <span class="text-lg font-black text-gray-400 peer-checked:text-blue-500">🏆 經典單淘汰</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-blue-200">動態樹狀圖，一戰定生死</span>
-                </div>
-            </label>
+
+            <!-- Row 2 -->
             <label class="cursor-pointer relative">
                 <input type="radio" value="redemption" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
                 <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-rose-950/40 peer-checked:border-rose-500 peer-checked:shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-all flex flex-col items-center justify-center gap-2">
                     <span class="text-lg font-black text-gray-400 peer-checked:text-rose-500">🛡️ 敗部復活制</span>
                     <span class="text-xs text-gray-500 peer-checked:text-rose-200">雙敗淘汰與季軍戰機制</span>
+                </div>
+            </label>
+            <label class="cursor-pointer relative">
+                <input type="radio" value="team_3v3" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
+                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-orange-950/40 peer-checked:border-orange-500 peer-checked:shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all flex flex-col items-center justify-center gap-2">
+                    <span class="text-lg font-black text-gray-400 peer-checked:text-orange-500">🤝 3v3 手動戰隊</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-orange-200">手動建立隊伍，樹狀單淘汰</span>
                 </div>
             </label>
             <label class="cursor-pointer relative">
@@ -168,11 +202,12 @@
                 </div>
             </label>
 
+            <!-- Row 3 -->
             <label class="cursor-pointer relative">
-                <input type="radio" value="team_3v3" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
-                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-orange-950/40 peer-checked:border-orange-500 peer-checked:shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all flex flex-col items-center justify-center gap-2">
-                    <span class="text-lg font-black text-gray-400 peer-checked:text-orange-500">🤝 3v3 手動戰隊</span>
-                    <span class="text-xs text-gray-500 peer-checked:text-orange-200">手動建立隊伍，樹狀單淘汰</span>
+                <input type="radio" value="super_round_robin" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
+                <div class="h-full p-4 rounded-xl border-2 border-transparent peer-checked:bg-fuchsia-950/40 peer-checked:border-neon-purple peer-checked:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all flex flex-col items-center justify-center gap-2">
+                    <span class="text-lg font-black text-gray-400 peer-checked:text-neon-purple">⚔️ 超級車輪戰</span>
+                    <span class="text-xs text-gray-500 peer-checked:text-fuchsia-200">全體大亂鬥！算總積分</span>
                 </div>
             </label>
             <label class="cursor-pointer relative">
@@ -976,6 +1011,10 @@ createApp({
         const bracketOrientation = ref('vertical');
         const redemptionOrientation = ref('vertical');
         
+        // 1.5秒洗牌動畫使用變數
+        const isShuffling = ref(false);
+        const shufflingNames = ref([]);
+
         const currentRound = ref(1);
         const allSwissMatches = ref([]);
         const rrGroups = ref([]);
@@ -994,7 +1033,7 @@ createApp({
         const finalChampion = ref(null);  
         const finalRunnerUp = ref(null);  
         const finalThird = ref(null);     
-        const finalFourth = ref(null);    
+        const finalFourth = ref(null);   
 
         const active3v3Match = ref(null);
         const selectedT1Member = ref(null);
@@ -1369,11 +1408,9 @@ createApp({
         const removePlayer = (index) => players.value.splice(index, 1);
         const clearPlayerList = () => { if (confirm('確定要清空所有名單嗎？')) { players.value = []; saveToLocalStorage(); } };
 
-        const startTournament = () => {
+        // 實際執行開始比賽的邏輯
+        const executeStartTournament = () => {
             if (['random_team_rr', 'random_team_2v2'].includes(tournamentMode.value)) {
-                const requiredSize = tournamentMode.value === 'random_team_rr' ? 6 : 4;
-                if (players.value.length < requiredSize) { alert(`最少需要 ${requiredSize} 名選手才能產生 2 支戰隊進行比賽！`); return; }
-                
                 let shuffled = [...players.value];
                 for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
                 
@@ -1402,6 +1439,29 @@ createApp({
             else if (tournamentMode.value === 'redemption') { initRedemptionBracket(); }
             else if (['single_elimination', 'team_3v3', 'team_2v2'].includes(tournamentMode.value)) { initSingleEliminationBracket(); }
             saveToLocalStorage();
+        };
+
+        // 綁定於按鈕上的動畫包裝函數
+        const startTournament = () => {
+            // 防呆檢測 (避免動畫跑完才報錯)
+            if (['random_team_rr', 'random_team_2v2'].includes(tournamentMode.value)) {
+                const requiredSize = tournamentMode.value === 'random_team_rr' ? 6 : 4;
+                if (players.value.length < requiredSize) { alert(`最少需要 ${requiredSize} 名選手才能產生 2 支戰隊進行比賽！`); return; }
+            }
+
+            // 啟動動畫
+            isShuffling.value = true;
+            let shuffleInterval = setInterval(() => {
+                // 隨機抽取 6~12 個名字做特效
+                shufflingNames.value = [...players.value].sort(() => 0.5 - Math.random()).map(p => p.name).slice(0, 12);
+            }, 120);
+
+            // 1.5秒後結束動畫並執行核心邏輯
+            setTimeout(() => {
+                clearInterval(shuffleInterval);
+                isShuffling.value = false;
+                executeStartTournament();
+            }, 1500);
         };
 
         const generateMatchesForRound = (rIndex) => {
@@ -1637,9 +1697,9 @@ createApp({
         const toggleMode = () => {
             const modes = ['swiss', 'round_robin', 'super_round_robin', 'redemption', 'single_elimination', 'team_3v3', 'team_2v2', 'random_team_rr', 'random_team_2v2'];
             const nextMode = modes[(modes.indexOf(tournamentMode.value) + 1) % modes.length];
-            if (confirm(`切換賽制進度將會遺失，確定嗎？`)) { tournamentMode.value = nextMode; resetTournamentState(); startTournament(); saveToLocalStorage(); }
+            if (confirm(`切換賽制進度將會遺失，確定嗎？`)) { tournamentMode.value = nextMode; resetTournamentState(); saveToLocalStorage(); }
         };
-        const resetKeepPlayers = () => { if (confirm('保留目前名單，重新開始比賽嗎？')) { resetTournamentState(); startTournament(); saveToLocalStorage(); } };
+        const resetKeepPlayers = () => { if (confirm('保留目前名單，重新開始比賽嗎？')) { resetTournamentState(); executeStartTournament(); saveToLocalStorage(); } };
         const resetAll = () => { if (confirm('包含選手名單在內的所有資料都將被清空嗎？')) { players.value = []; resetTournamentState(); status.value = 'setup'; saveToLocalStorage(); } };
 
         const initPeer = () => {
@@ -1679,6 +1739,8 @@ createApp({
             bracketLayout, addPlayer, removePlayer, clearPlayerList, startTournament, onScoreChange, toggleAdvanced, advancedPlayersCount,
             getGroupMatches, allSwissMatchesScored, nextRoundSwiss, forceFinishPhase, rrGroups, allRRMatchesScored, finishRoundRobin,
             sortedPlayers, resetKeepPlayers, resetAll, returnToSetup, toggleMode, startBracket, bracketOrientation, redemptionOrientation,
+            
+            isShuffling, shufflingNames,
             
             newTeamMembers, addTeam, active3v3Match, selectedT1Member, selectedT2Member, t1BoutScore, t2BoutScore, open3v3Modal, close3v3Modal, submitBout, t1AllDead, t2AllDead,
 
