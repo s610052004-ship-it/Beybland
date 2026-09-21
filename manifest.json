@@ -1,1 +1,21 @@
-
+{
+  "name": "BEYBLADE X 賽事系統",
+  "short_name": "BBX賽事",
+  "description": "BEYBLADE X 離線賽事管理與計分系統",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#030712",
+  "icons": [
+    {
+      "src": "https://api.iconify.design/twemoji:stadium.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://api.iconify.design/twemoji:stadium.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
