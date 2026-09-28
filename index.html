@@ -609,7 +609,7 @@
             </div>
 
             <!-- Sticky Finish Button -->
-            <div v-if="status === 'playing' && !isSpectator" class="sticky bottom-4 z-40 w-full flex justify-center mt-6">
+            <div v-if="status === 'bracket' && !isSpectator" class="sticky bottom-4 z-40 w-full flex justify-center mt-6">
                 <div class="bg-gray-950/90 backdrop-blur-md border border-gray-700 shadow-[0_0_30px_rgba(0,0,0,0.9)] p-3 rounded-2xl w-full max-w-sm text-center">
                     <button @click="finishBracket" :disabled="!allBracketMatchesScored" :class="allBracketMatchesScored ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'" class="w-full text-white py-3 rounded-xl font-black transition text-lg uppercase tracking-widest">
                         🏆 確定賽果，揭曉名次
@@ -1064,7 +1064,34 @@ createApp({
         const isSmallTournament = computed(() => players.value.length <= 8);
         const targetWins = computed(() => isSmallTournament.value ? 2 : 3);
         const targetLosses = computed(() => isSmallTournament.value ? 2 : 3);
-        const bracketLayout = computed(() => { return isSmallTournament.value ? [['0-0'], ['1-0', '0-1'], ['1-1']] : [['0-0'], ['1-0', '0-1'], ['2-0', '1-1', '0-2'], ['2-1', '1-2'], ['2-2']]; });
+
+        // 改寫為動態生成的 bracketLayout，解決罕見對局或非正規人數無法呈現問題
+        const bracketLayout = computed(() => {
+            const layout = [];
+            const rounds = isSmallTournament.value ? 3 : 5;
+            for (let r = 1; r <= rounds; r++) {
+                const matchesInRound = allSwissMatches.value.filter(m => m.roundIndex === r);
+                const keysMap = new Map();
+                matchesInRound.forEach(m => {
+                    keysMap.set(m.groupKey, true);
+                });
+                
+                if (keysMap.size > 0) {
+                    const sortedKeys = Array.from(keysMap.keys()).sort((a, b) => {
+                        const [wA, lA] = a.split('-').map(Number);
+                        const [wB, lB] = b.split('-').map(Number);
+                        if (wA !== wB) return wB - wA;
+                        return lA - lB;
+                    });
+                    layout.push(sortedKeys);
+                } else {
+                    if (r === 1) layout.push(['0-0']);
+                    else if (r === 2) layout.push(['1-0', '0-1']);
+                    else layout.push([]);
+                }
+            }
+            return layout;
+        });
 
         const expectedMatchesText = computed(() => {
             const n = players.value.length;
@@ -1126,13 +1153,15 @@ createApp({
             if (bracketMatches.value.length > 0) updateBracketAdvancements();
             if (wbMatches.value.length > 0) updateRedemptionAdvancements();
             
+            // 修正：取消輸入分數瞬間的暴走跳轉，確保使用者有時間反應並手動按下「確認賽果」
             if (['bracket', 'redemption_bracket', 'champion_crowned'].includes(status.value)) {
-                if (tournamentMode.value === 'redemption') {
-                    if (canProgressRedemption.value) { status.value = 'champion_crowned'; updateFinalChampions(); } 
-                    else if (status.value === 'champion_crowned') { status.value = 'redemption_bracket'; }
-                } else {
-                    if (allBracketMatchesScored.value) { status.value = 'champion_crowned'; updateFinalChampions(); } 
-                    else if (status.value === 'champion_crowned') { status.value = 'bracket'; }
+                if (status.value === 'champion_crowned') {
+                    // 若在結算畫面取消分數，則退回該打的介面
+                    if (tournamentMode.value === 'redemption' && !canProgressRedemption.value) {
+                        status.value = 'redemption_bracket';
+                    } else if (tournamentMode.value !== 'redemption' && !allBracketMatchesScored.value) {
+                        status.value = 'bracket';
+                    }
                 }
             }
             saveToLocalStorage();
@@ -1408,7 +1437,6 @@ createApp({
         const removePlayer = (index) => players.value.splice(index, 1);
         const clearPlayerList = () => { if (confirm('確定要清空所有名單嗎？')) { players.value = []; saveToLocalStorage(); } };
 
-        // 實際執行開始比賽的邏輯
         const executeStartTournament = () => {
             if (['random_team_rr', 'random_team_2v2'].includes(tournamentMode.value)) {
                 let shuffled = [...players.value];
@@ -1441,22 +1469,17 @@ createApp({
             saveToLocalStorage();
         };
 
-        // 綁定於按鈕上的動畫包裝函數
         const startTournament = () => {
-            // 防呆檢測 (避免動畫跑完才報錯)
             if (['random_team_rr', 'random_team_2v2'].includes(tournamentMode.value)) {
                 const requiredSize = tournamentMode.value === 'random_team_rr' ? 6 : 4;
                 if (players.value.length < requiredSize) { alert(`最少需要 ${requiredSize} 名選手才能產生 2 支戰隊進行比賽！`); return; }
             }
 
-            // 啟動動畫
             isShuffling.value = true;
             let shuffleInterval = setInterval(() => {
-                // 隨機抽取 6~12 個名字做特效
                 shufflingNames.value = [...players.value].sort(() => 0.5 - Math.random()).map(p => p.name).slice(0, 12);
             }, 120);
 
-            // 1.5秒後結束動畫並執行核心邏輯
             setTimeout(() => {
                 clearInterval(shuffleInterval);
                 isShuffling.value = false;
@@ -1531,11 +1554,30 @@ createApp({
             return true;
         });
 
+        // ==========================================
+        // 補齊結算函式
+        // ==========================================
         const finishRoundRobin = () => { 
             if (tournamentMode.value === 'random_team_rr') { updateFinalChampions(); status.value = 'champion_crowned'; } 
             else { status.value = 'swiss_finished'; }
             saveToLocalStorage(); 
         };
+
+        const finishBracket = () => {
+            if (!allBracketMatchesScored.value) return;
+            status.value = 'champion_crowned';
+            updateFinalChampions();
+            saveToLocalStorage();
+        };
+
+        const finishRedemption = () => {
+            if (!canProgressRedemption.value) return;
+            status.value = 'champion_crowned';
+            updateFinalChampions();
+            saveToLocalStorage();
+        };
+        // ==========================================
+
         const forceFinishPhase = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
 
         const startBracket = (sizeOrType) => {
@@ -1738,6 +1780,7 @@ createApp({
             status, tournamentMode, newPlayerName, players, currentRound, isSmallTournament, targetWins, targetLosses, expectedMatchesText,
             bracketLayout, addPlayer, removePlayer, clearPlayerList, startTournament, onScoreChange, toggleAdvanced, advancedPlayersCount,
             getGroupMatches, allSwissMatchesScored, nextRoundSwiss, forceFinishPhase, rrGroups, allRRMatchesScored, finishRoundRobin,
+            finishBracket, finishRedemption,
             sortedPlayers, resetKeepPlayers, resetAll, returnToSetup, toggleMode, startBracket, bracketOrientation, redemptionOrientation,
             
             isShuffling, shufflingNames,
