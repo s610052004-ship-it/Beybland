@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BEYBLADE X 賽事管理系統</title>
-    
+
     <!-- PWA Web App Manifest -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#030712">
@@ -34,20 +34,20 @@
         .neon-glow-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.35); }
         .neon-glow-gold { box-shadow: 0 0 20px rgba(234, 179, 8, 0.5); }
         .glass-panel { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-        
+
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
-        
+
         .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0b0f19; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #374151; }
-        
+
         .scroll-touch { -webkit-overflow-scrolling: touch; }
         .fade-enter-active, .fade-leave-active { transition: all 0.4s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(20px); }
-        
+
         /* 動畫特效 */
         .shuffle-item { transition: all 0.1s ease-in-out; }
     </style>
@@ -114,6 +114,117 @@
         </div>
     </div>
 
+    <!-- 🌍 全球積分與成就 Modal -->
+    <div v-if="showGlobalModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md" @click.self="showGlobalModal = false">
+        <div class="bg-gray-900 border border-neon-gold rounded-2xl p-4 md:p-6 max-w-5xl w-full mx-4 shadow-[0_0_40px_rgba(234,179,8,0.3)] flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3 shrink-0">
+                <h3 class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500">🌍 世界積分排名與成就榜</h3>
+                <button @click="showGlobalModal = false" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            
+            <div class="overflow-y-auto custom-scrollbar pr-2 scroll-touch flex-1 space-y-6">
+                <!-- 三大王者展示區 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-gray-950 border border-rose-500/50 p-4 rounded-xl flex flex-col items-center shadow-lg relative overflow-hidden">
+                        <div class="absolute -right-4 -top-4 text-5xl opacity-20">💥</div>
+                        <h4 class="text-rose-400 font-black text-lg mb-1">極限王牌 (X)</h4>
+                        <div v-if="extremeKing" class="text-center">
+                            <span class="text-2xl font-bold text-white">{{ extremeKing.name }}</span>
+                            <span class="ml-2 text-rose-300 font-black bg-rose-950/50 px-2 py-0.5 rounded">{{ extremeKing.extreme }}次</span>
+                        </div>
+                        <div v-else class="text-gray-500 text-sm font-bold">虛位以待</div>
+                    </div>
+                    <div class="bg-gray-950 border border-cyan-500/50 p-4 rounded-xl flex flex-col items-center shadow-lg relative overflow-hidden">
+                        <div class="absolute -right-4 -top-4 text-5xl opacity-20">💨</div>
+                        <h4 class="text-cyan-400 font-black text-lg mb-1">擊飛王 (O)</h4>
+                        <div v-if="overKing" class="text-center">
+                            <span class="text-2xl font-bold text-white">{{ overKing.name }}</span>
+                            <span class="ml-2 text-cyan-300 font-black bg-cyan-950/50 px-2 py-0.5 rounded">{{ overKing.over }}次</span>
+                        </div>
+                        <div v-else class="text-gray-500 text-sm font-bold">虛位以待</div>
+                    </div>
+                    <div class="bg-gray-950 border border-purple-500/50 p-4 rounded-xl flex flex-col items-center shadow-lg relative overflow-hidden">
+                        <div class="absolute -right-4 -top-4 text-5xl opacity-20">✨</div>
+                        <h4 class="text-purple-400 font-black text-lg mb-1">爆裂王 (B)</h4>
+                        <div v-if="burstKing" class="text-center">
+                            <span class="text-2xl font-bold text-white">{{ burstKing.name }}</span>
+                            <span class="ml-2 text-purple-300 font-black bg-purple-950/50 px-2 py-0.5 rounded">{{ burstKing.burst }}次</span>
+                        </div>
+                        <div v-else class="text-gray-500 text-sm font-bold">虛位以待</div>
+                    </div>
+                </div>
+
+                <!-- 積分管理清單 -->
+                <div class="bg-gray-800/50 rounded-xl border border-gray-700 p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-bold text-neon-gold flex items-center gap-2"><span>📊</span> 選手積分與成就管理</h4>
+                        <button @click="resetMonthlyFinishes" class="text-xs bg-red-950/50 border border-red-800 text-red-400 px-3 py-1.5 rounded-lg font-bold hover:bg-red-900 transition">🔄 歸零本月(X/O/B)次數</button>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row gap-2 mb-4">
+                        <input v-model="newGlobalPlayerName" @keyup.enter="addGlobalPlayer" type="text" placeholder="輸入新人員名稱建立積分檔..." class="border border-gray-600 bg-gray-900 p-2.5 rounded-lg flex-1 text-white focus:ring-1 focus:ring-neon-gold outline-none text-sm font-bold">
+                        <button @click="addGlobalPlayer" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-lg font-bold transition text-sm whitespace-nowrap shadow-md">➕ 建立人員</button>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar pb-2">
+                        <table class="w-full text-left text-sm border-collapse min-w-[600px]">
+                            <thead>
+                                <tr class="bg-gray-900 text-gray-400 border-b border-gray-700">
+                                    <th class="p-2 text-center w-12">排名</th>
+                                    <th class="p-2">選手名稱</th>
+                                    <th class="p-2 text-center text-yellow-400 w-24">總積分</th>
+                                    <th class="p-2 text-center text-rose-400">極限(X)</th>
+                                    <th class="p-2 text-center text-cyan-400">擊飛(O)</th>
+                                    <th class="p-2 text-center text-purple-400">爆裂(B)</th>
+                                    <th class="p-2 text-center w-20">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(gp, index) in sortedGlobalPlayers" :key="gp.name" class="border-b border-gray-800 hover:bg-gray-800/40 transition">
+                                    <td class="p-2 text-center font-black text-gray-500">#{{ index + 1 }}</td>
+                                    <td class="p-2 font-bold text-white">{{ gp.name }}</td>
+                                    <td class="p-2 text-center">
+                                        <input type="number" v-model.number="gp.score" @change="saveGlobalStats" class="w-16 bg-gray-950 border border-yellow-700/50 text-yellow-400 text-center rounded py-1 font-black outline-none focus:border-yellow-400">
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button @click="updateGlobalStat(gp, 'extreme', -1)" class="w-6 h-6 bg-gray-700 rounded text-gray-300 font-bold hover:bg-rose-900">-</button>
+                                            <span class="w-6 text-center font-bold text-rose-300">{{ gp.extreme }}</span>
+                                            <button @click="updateGlobalStat(gp, 'extreme', 1)" class="w-6 h-6 bg-rose-900 rounded text-white font-bold hover:bg-rose-700">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button @click="updateGlobalStat(gp, 'over', -1)" class="w-6 h-6 bg-gray-700 rounded text-gray-300 font-bold hover:bg-cyan-900">-</button>
+                                            <span class="w-6 text-center font-bold text-cyan-300">{{ gp.over }}</span>
+                                            <button @click="updateGlobalStat(gp, 'over', 1)" class="w-6 h-6 bg-cyan-900 rounded text-white font-bold hover:bg-cyan-700">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button @click="updateGlobalStat(gp, 'burst', -1)" class="w-6 h-6 bg-gray-700 rounded text-gray-300 font-bold hover:bg-purple-900">-</button>
+                                            <span class="w-6 text-center font-bold text-purple-300">{{ gp.burst }}</span>
+                                            <button @click="updateGlobalStat(gp, 'burst', 1)" class="w-6 h-6 bg-purple-900 rounded text-white font-bold hover:bg-purple-700">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        <button @click="deleteGlobalPlayer(gp.name)" class="text-red-500 hover:text-red-400 font-bold px-2 py-1 bg-red-950/30 rounded">刪除</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="globalPlayers.length === 0">
+                                    <td colspan="7" class="text-center p-6 text-gray-500 font-bold">尚無人員資料，請先新增</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-700 text-center shrink-0">
+                <button @click="showGlobalModal = false" class="bg-gray-800 text-white font-bold px-8 py-3 rounded-xl hover:bg-gray-700 transition shadow">關閉面板</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Header -->
     <div class="flex flex-col items-center justify-center mb-6 border-b border-gray-800 pb-5 relative text-center gap-4 mt-8 md:mt-0">
         <div>
@@ -155,7 +266,7 @@
     <div v-if="status === 'setup'" class="space-y-6 flex flex-col items-center text-center">
         <!-- 賽制選單：優化為 3x3 網格排列 (依照指定順序) -->
         <div class="w-full max-w-6xl bg-gray-900/80 p-3 rounded-2xl border border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" :class="{'opacity-50 pointer-events-none': isSpectator}">
-            
+
             <!-- Row 1 -->
             <label class="cursor-pointer relative">
                 <input type="radio" value="swiss" v-model="tournamentMode" class="peer hidden" :disabled="isSpectator">
@@ -238,13 +349,34 @@
             </ol>
         </div>
 
+        <!-- 常用人員快速新增區 -->
+        <div v-if="!isSpectator" class="w-full max-w-3xl mb-1 mt-4">
+            <div class="flex justify-between items-center bg-gray-900/50 p-3 rounded-xl border border-gray-700/50">
+                <div class="text-sm font-bold text-gray-400">
+                    <span class="mr-2">👥 常用人員 (點選帶入)</span>
+                </div>
+                <button @click="showGlobalModal = true" class="bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-md hover:scale-105 transition">
+                    🌍 全局積分與成就管理
+                </button>
+            </div>
+            <div v-if="globalPlayers.length > 0" class="flex flex-wrap gap-2 mt-3 px-2">
+                <button v-for="gp in globalPlayers" :key="gp.name"
+                        @click="addCommonPlayer(gp.name)"
+                        class="bg-gray-800 border border-gray-600 px-4 py-1.5 rounded-full text-sm font-bold hover:bg-neon-blue hover:text-black transition"
+                        :class="{'opacity-30 pointer-events-none border-emerald-500': players.some(p => p.name === gp.name)}">
+                    {{ gp.name }} <span class="text-xs text-yellow-400 ml-1">({{ gp.score }})</span>
+                </button>
+            </div>
+            <div v-else class="text-xs text-gray-500 mt-2">尚無常用人員，請點擊右方按鈕建立。</div>
+        </div>
+
         <!-- 3v3 / 2v2 手動戰隊報名區 -->
         <div v-if="['team_3v3', 'team_2v2'].includes(tournamentMode)" class="w-full max-w-3xl">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-4">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-4 mt-4">
                 <h2 class="text-lg font-bold text-orange-500">戰隊報名區 (目前：{{ players.length }} 隊)</h2>
                 <button v-if="players.length > 0 && !isSpectator" @click="clearPlayerList" class="text-xs text-red-400 font-bold bg-red-950/40 border border-red-800/60 px-3 py-1 rounded-lg">🗑️ 清空名單</button>
             </div>
-            
+
             <div v-if="!isSpectator" class="flex flex-col gap-3 justify-center w-full max-w-lg mx-auto bg-gray-900 p-5 rounded-2xl border border-gray-700 shadow-inner">
                 <input v-model="newPlayerName" @keyup.enter="addTeam" type="text" placeholder="輸入戰隊名稱 (例: 隊伍A)..." class="border border-gray-600 bg-gray-950 p-3 rounded-xl w-full focus:ring-2 focus:ring-orange-500 outline-none text-white text-center font-bold">
                 <div class="flex flex-col sm:flex-row gap-2">
@@ -258,18 +390,18 @@
 
         <!-- 一般選手輸入區 (支援批量貼上) -->
         <div v-else class="w-full max-w-3xl">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-4">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-4 mt-4">
                 <h2 class="text-lg font-bold" :class="['random_team_rr', 'random_team_2v2'].includes(tournamentMode) ? 'text-teal-400' : 'text-neon-blue'">
                     選手報名區 (目前：{{ players.length }} 人)
                 </h2>
                 <button v-if="players.length > 0 && !isSpectator" @click="clearPlayerList" class="text-xs text-red-400 hover:text-red-300 font-bold bg-red-950/40 border border-red-800/60 px-3 py-1 rounded-lg transition">🗑️ 清空名單</button>
             </div>
             <div v-if="!isSpectator" class="flex flex-col md:flex-row justify-center gap-3">
-                <textarea v-model="newPlayerName" @keyup.enter.exact.prevent="addPlayer" rows="2" placeholder="輸入選手名稱...&#10;(支援一次貼上多筆，可用換行或逗號分隔，按 Enter 新增)" class="border border-gray-700 bg-gray-900/80 p-3.5 rounded-xl flex-1 focus:ring-2 focus:ring-neon-blue outline-none text-white text-base shadow-inner resize-y custom-scrollbar text-center md:text-left"></textarea>
+                <textarea v-model="newPlayerName" @keyup.enter.exact.prevent="addPlayer" rows="2" placeholder="輸入新選手名稱...&#10;(支援一次貼上多筆，按 Enter 新增)" class="border border-gray-700 bg-gray-900/80 p-3.5 rounded-xl flex-1 focus:ring-2 focus:ring-neon-blue outline-none text-white text-base shadow-inner resize-y custom-scrollbar text-center md:text-left"></textarea>
                 <button @click="addPlayer" class="bg-gradient-to-r from-cyan-600 to-teal-600 text-white px-8 py-3.5 rounded-xl hover:from-cyan-500 hover:to-teal-500 hover:neon-glow-blue transition font-extrabold shadow-lg shrink-0">批量新增</button>
             </div>
         </div>
-        
+
         <div class="w-full max-w-4xl flex flex-wrap justify-center gap-3 min-h-[60px]">
             <div v-for="(player, index) in players" :key="player.id" class="bg-gray-800/80 px-4 py-2 rounded-xl flex items-center justify-center gap-3 border border-gray-700 shadow-md transition" :class="{'border-orange-600/50': player.isTeam}">
                 <span class="font-bold text-gray-100 flex items-center gap-1"><span v-if="player.isTeam">🛡️</span> {{ player.name }}</span>
@@ -352,7 +484,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div v-if="status === 'playing' && !isSpectator" class="sticky bottom-4 z-40 w-full flex justify-center mt-6">
                 <div class="bg-gray-950/90 backdrop-blur-md border border-gray-700 shadow-[0_0_30px_rgba(0,0,0,0.9)] p-3 rounded-2xl w-full max-w-sm text-center">
                     <button @click="nextRoundSwiss" :disabled="!allSwissMatchesScored" :class="allSwissMatchesScored ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 neon-glow-blue' : 'bg-gray-800 text-gray-500 cursor-not-allowed'" class="w-full text-white py-3 rounded-xl font-black transition text-lg uppercase tracking-widest">
@@ -417,7 +549,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div v-if="status === 'playing' && !isSpectator" class="sticky bottom-4 z-40 w-full flex justify-center mt-6">
                 <div class="bg-gray-950/90 backdrop-blur-md border border-gray-700 shadow-[0_0_30px_rgba(0,0,0,0.9)] p-3 rounded-2xl w-full max-w-sm text-center">
                     <button @click="finishRoundRobin" :disabled="!allRRMatchesScored" :class="allRRMatchesScored ? (tournamentMode === 'super_round_robin' ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : (tournamentMode === 'random_team_rr' ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-[0_0_15px_rgba(20,184,166,0.4)] hover:from-teal-500 hover:to-emerald-500' : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]')) : 'bg-gray-800 text-gray-500 cursor-not-allowed'" class="w-full text-white py-3 rounded-xl font-black transition text-lg uppercase tracking-widest">
@@ -480,7 +612,7 @@
 
     <!-- ★★★ 淘汰賽樹狀圖 ★★★ -->
     <div v-if="['bracket', 'champion_crowned'].includes(status) && !['redemption', 'random_team_rr'].includes(tournamentMode)" class="space-y-4 relative mt-4">
-        
+
         <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h2 class="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 drop-shadow-md text-center">
                 {{ ['team_3v3', 'team_2v2', 'random_team_2v2'].includes(tournamentMode) ? '⚔️ 戰隊單淘汰賽程表' : '👑 淘汰賽程樹狀圖' }}
@@ -491,7 +623,7 @@
         </div>
 
         <div class="overflow-x-auto p-4 bg-gray-950/80 border border-gray-800 rounded-xl relative custom-scrollbar scroll-touch">
-            
+
             <!-- 【直式排版】 -->
             <div v-if="bracketOrientation === 'vertical'" class="min-w-max w-fit mx-auto flex flex-col items-center py-8 px-4">
                 <template v-for="(round, rIdx) in reversedBracketMatches" :key="'round_' + rIdx">
@@ -631,9 +763,9 @@
         </div>
 
         <div class="w-full overflow-x-auto custom-scrollbar pb-8 bg-gray-950/50 rounded-2xl border border-gray-800 relative scroll-touch">
-            
+
             <div class="min-w-max w-fit mx-auto p-4 flex flex-col items-center">
-                
+
                 <!-- 總決賽區 (置頂) -->
                 <div class="flex flex-col items-center w-full py-8 bg-black/40 border-b border-gray-800 rounded-xl mb-6">
                     <h3 class="text-neon-gold text-xl font-black tracking-widest drop-shadow-md text-center mb-4">🏆 總決賽區</h3>
@@ -758,7 +890,7 @@
             <h2 class="text-2xl md:text-3xl font-black text-neon-gold mb-3 tracking-widest">🥇 冠軍 (CHAMPION) 🥇</h2>
             <div class="text-7xl md:text-8xl mb-4 drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]">👑</div>
             <h1 class="text-4xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-yellow-200 to-amber-600 drop-shadow-md mb-2 uppercase">{{ finalChampion ? finalChampion.name : '等待結算' }}</h1>
-            
+
             <!-- 戰隊成員名單 -->
             <div v-if="finalChampion && finalChampion.isTeam && finalChampion.members" class="text-base md:text-xl text-amber-300 font-bold mb-3 flex flex-wrap gap-2 justify-center mt-2">
                 <span class="bg-amber-950/80 border border-amber-500/60 px-4 py-1.5 rounded-xl shadow-md">
@@ -772,7 +904,6 @@
                 <span class="bg-black/40 border border-yellow-700/50 px-3 py-1.5 rounded-lg text-orange-300">總失分: {{ finalChampion.pointsAgainst }}</span>
                 <span class="bg-black/40 border border-yellow-700/50 px-3 py-1.5 rounded-lg text-emerald-400">淨分差: <span v-if="(finalChampion.totalPoints - finalChampion.pointsAgainst) > 0">+</span>{{ finalChampion.totalPoints - finalChampion.pointsAgainst }}</span>
             </div>
-            <!-- 戰隊模式若用數據結算，也可以秀出數據 -->
             <div v-if="finalChampion && tournamentMode === 'random_team_rr'" class="flex flex-wrap gap-3 justify-center text-sm font-bold">
                 <span class="bg-black/40 border border-yellow-700/50 px-3 py-1.5 rounded-lg text-yellow-200">戰績: {{ finalChampion.wins }}W-{{ finalChampion.losses }}L</span>
                 <span class="bg-black/40 border border-yellow-700/50 px-3 py-1.5 rounded-lg text-emerald-400">淨分差: <span v-if="(finalChampion.totalPoints - finalChampion.pointsAgainst) > 0">+</span>{{ finalChampion.totalPoints - finalChampion.pointsAgainst }}</span>
@@ -798,7 +929,7 @@
                     <span class="bg-black/30 border border-gray-600 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalRunnerUp.totalPoints - finalRunnerUp.pointsAgainst) > 0">+</span>{{ finalRunnerUp.totalPoints - finalRunnerUp.pointsAgainst }}</span>
                 </div>
             </div>
-            
+
             <!-- 季軍 -->
             <div class="bg-amber-950/60 border border-amber-700/80 p-6 rounded-2xl flex flex-col items-center shadow-lg hover:border-amber-500 transition-colors">
                 <div class="text-5xl mb-2 drop-shadow-md">🥉</div>
@@ -817,7 +948,7 @@
                     <span class="bg-black/30 border border-amber-800/50 px-2 py-1 rounded text-emerald-400">淨: <span v-if="(finalThird.totalPoints - finalThird.pointsAgainst) > 0">+</span>{{ finalThird.totalPoints - finalThird.pointsAgainst }}</span>
                 </div>
             </div>
-            
+
             <!-- 殿軍 -->
             <div class="bg-blue-950/50 border border-blue-800/60 p-6 rounded-2xl flex flex-col items-center shadow-lg hover:border-blue-500 transition-colors">
                 <div class="text-5xl mb-2 drop-shadow-md">🏅</div>
@@ -838,8 +969,15 @@
             </div>
         </div>
 
+        <!-- 結算成績寫入總榜單的按鈕 -->
+        <div v-if="!isSpectator" class="flex justify-center mt-6">
+            <button @click="syncToGlobalStats" class="bg-gradient-to-r from-yellow-600 to-amber-600 text-white font-black px-8 py-3 rounded-xl shadow-[0_0_20px_rgba(217,119,6,0.5)] hover:scale-105 transition flex items-center gap-2">
+                <span class="text-2xl">🏆</span> 將本次排名化為積分寫入總榜單
+            </button>
+        </div>
+
         <!-- 全體數據紀錄表 -->
-        <div class="mt-12 bg-gray-900/90 border border-gray-700 rounded-2xl shadow-2xl p-6 md:p-8 relative">
+        <div class="mt-8 bg-gray-900/90 border border-gray-700 rounded-2xl shadow-2xl p-6 md:p-8 relative">
             <h3 class="text-2xl font-black text-neon-blue mb-6 border-b border-gray-700 pb-3">📊 全體最終數據與全賽程紀錄</h3>
             <div class="mb-8">
                 <h4 class="text-lg font-bold text-gray-300 mb-3 pl-2 border-l-4 border-emerald-500">🏆 總結算榜</h4>
@@ -875,7 +1013,7 @@
                     </table>
                 </div>
             </div>
-            
+
             <div>
                 <h4 class="text-lg font-bold text-gray-300 mb-3 pl-2 border-l-4 border-cyan-500">📝 全賽程對戰日誌</h4>
                 <div class="overflow-x-auto bg-gray-950 rounded-xl border border-gray-800 custom-scrollbar max-h-[400px] scroll-touch">
@@ -929,7 +1067,7 @@
         <div class="bg-gray-900 border border-orange-500 rounded-2xl p-4 md:p-6 max-w-4xl w-full mx-4 shadow-[0_0_40px_rgba(249,115,22,0.4)] flex flex-col max-h-[95vh] md:max-h-[90vh]">
             <h3 class="text-2xl md:text-3xl font-black text-center text-orange-400 mb-2 shrink-0">⚔️ {{ active3v3Match.t1State.length }}v{{ active3v3Match.t2State.length }} 戰隊賽交鋒 ⚔️</h3>
             <p class="text-center text-gray-400 text-xs md:text-sm mb-4 shrink-0">請分別勾選雙方存活隊員，輸入比分後確認。敗者將遭到淘汰(反灰)。</p>
-            
+
             <div class="flex flex-col md:flex-row justify-between gap-4 md:gap-6 flex-1 overflow-y-auto custom-scrollbar pr-2 scroll-touch">
                 <!-- Team 1 -->
                 <div class="flex-1 bg-gray-950 p-4 rounded-xl border shrink-0" :class="t1AllDead ? 'border-red-900 opacity-60 grayscale' : 'border-emerald-600'">
@@ -946,7 +1084,7 @@
                 <!-- 戰鬥區域 -->
                 <div class="flex flex-col items-center justify-center shrink-0 w-full md:w-auto my-4 md:my-0">
                     <div class="text-4xl font-black text-orange-500 mb-4 drop-shadow-md">VS</div>
-                    
+
                     <div v-if="!isSpectator && !t1AllDead && !t2AllDead" class="bg-gray-800 p-4 rounded-xl border border-gray-600 w-full md:w-64">
                         <div class="text-center text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest">當前對戰比分</div>
                         <div class="flex items-center justify-center gap-3">
@@ -1010,7 +1148,83 @@ createApp({
         const newTeamMembers = ref(['', '', '']);
         const bracketOrientation = ref('vertical');
         const redemptionOrientation = ref('vertical');
+
+        // ==========================================
+        // 全域積分與成就系統 (Elo & X/O/B Kings)
+        // ==========================================
+        const showGlobalModal = ref(false);
+        const globalPlayers = ref([]); // { name, score, extreme, over, burst }
+        const newGlobalPlayerName = ref('');
         
+        const loadGlobalStats = () => {
+            const saved = localStorage.getItem('beyblade_global_stats_v1');
+            if (saved) {
+                globalPlayers.value = JSON.parse(saved);
+            }
+        };
+        const saveGlobalStats = () => {
+            localStorage.setItem('beyblade_global_stats_v1', JSON.stringify(globalPlayers.value));
+        };
+
+        const addGlobalPlayer = () => {
+            const name = newGlobalPlayerName.value.trim();
+            if (name && !globalPlayers.value.some(p => p.name === name)) {
+                globalPlayers.value.push({ name: name, score: 1000, extreme: 0, over: 0, burst: 0 });
+                newGlobalPlayerName.value = '';
+                saveGlobalStats();
+            } else if (name) {
+                alert('人員名稱已存在！');
+            }
+        };
+        
+        const deleteGlobalPlayer = (name) => {
+            if(confirm(`確定要刪除「${name}」的積分資料嗎？這無法復原。`)){
+                globalPlayers.value = globalPlayers.value.filter(p => p.name !== name);
+                saveGlobalStats();
+            }
+        };
+
+        const updateGlobalStat = (player, type, amount) => {
+            player[type] += amount;
+            if(player[type] < 0) player[type] = 0;
+            saveGlobalStats();
+        };
+
+        const resetMonthlyFinishes = () => {
+            if(confirm('確定要將所有人的 極限、擊飛、爆裂 次數全部歸零嗎？(積分不會歸零)')){
+                globalPlayers.value.forEach(p => { p.extreme = 0; p.over = 0; p.burst = 0; });
+                saveGlobalStats();
+            }
+        };
+
+        const addCommonPlayer = (name) => {
+            if (!players.value.some(p => p.name === name)) {
+                players.value.push({
+                    id: Date.now() + Math.random(),
+                    name: name,
+                    isTeam: false,
+                    played: 0, wins: 0, losses: 0, totalPoints: 0, pointsAgainst: 0, advanced: false, eliminated: false
+                });
+                saveToLocalStorage();
+            }
+        };
+
+        const sortedGlobalPlayers = computed(() => {
+            return [...globalPlayers.value].sort((a, b) => b.score - a.score);
+        });
+
+        // 尋找三大王者
+        const getKing = (type) => {
+            if(globalPlayers.value.length === 0) return null;
+            const sorted = [...globalPlayers.value].sort((a,b) => b[type] - a[type]);
+            if(sorted[0][type] > 0) return sorted[0];
+            return null;
+        };
+        const extremeKing = computed(() => getKing('extreme'));
+        const overKing = computed(() => getKing('over'));
+        const burstKing = computed(() => getKing('burst'));
+
+        // ==========================================
         // 1.5秒洗牌動畫使用變數
         const isShuffling = ref(false);
         const shufflingNames = ref([]);
@@ -1023,7 +1237,7 @@ createApp({
         const currentBracketRoundIndex = ref(0);
         const bracketRoundNames = ref([]);
         const normalBronzeMatch = ref(null); 
-        
+
         const wbMatches = ref([]);
         const lbMatches = ref([]);
         const gfMatch = ref(null);
@@ -1048,7 +1262,7 @@ createApp({
         const peerInstance = ref(null);
         const activeConnections = ref([]);
         const connectionStatus = ref('connecting'); 
-        
+
         const peerConfig = {
             config: {
                 'iceServers': [
@@ -1065,7 +1279,6 @@ createApp({
         const targetWins = computed(() => isSmallTournament.value ? 2 : 3);
         const targetLosses = computed(() => isSmallTournament.value ? 2 : 3);
 
-        // 改寫為動態生成的 bracketLayout，解決罕見對局或非正規人數無法呈現問題
         const bracketLayout = computed(() => {
             const layout = [];
             const rounds = isSmallTournament.value ? 3 : 5;
@@ -1075,7 +1288,7 @@ createApp({
                 matchesInRound.forEach(m => {
                     keysMap.set(m.groupKey, true);
                 });
-                
+
                 if (keysMap.size > 0) {
                     const sortedKeys = Array.from(keysMap.keys()).sort((a, b) => {
                         const [wA, lA] = a.split('-').map(Number);
@@ -1096,7 +1309,7 @@ createApp({
         const expectedMatchesText = computed(() => {
             const n = players.value.length;
             if (n < 2) return '-';
-            
+
             if (tournamentMode.value === 'swiss') return `約 ${Math.ceil((n / 2) * (isSmallTournament.value ? 3 : 5))} 場`;
             if (tournamentMode.value === 'round_robin') return n === 5 ? '⚠️ 不適用' : `共 ${getRRGroupSizes(n).reduce((sum, size) => sum + (size * (size - 1)) / 2, 0)} 場`;
             if (tournamentMode.value === 'super_round_robin') return `共 ${(n * (n - 1)) / 2} 場`;
@@ -1152,11 +1365,9 @@ createApp({
             recalculateAllStats();
             if (bracketMatches.value.length > 0) updateBracketAdvancements();
             if (wbMatches.value.length > 0) updateRedemptionAdvancements();
-            
-            // 修正：取消輸入分數瞬間的暴走跳轉，確保使用者有時間反應並手動按下「確認賽果」
+
             if (['bracket', 'redemption_bracket', 'champion_crowned'].includes(status.value)) {
                 if (status.value === 'champion_crowned') {
-                    // 若在結算畫面取消分數，則退回該打的介面
                     if (tournamentMode.value === 'redemption' && !canProgressRedemption.value) {
                         status.value = 'redemption_bracket';
                     } else if (tournamentMode.value !== 'redemption' && !allBracketMatchesScored.value) {
@@ -1244,7 +1455,7 @@ createApp({
         const buildEliminationBracket = (participantList) => {
             let n = 2; while (n < participantList.length) n *= 2;
             let paddedPlayers = [...participantList]; while (paddedPlayers.length < n) paddedPlayers.push(null);
-            
+
             const seeds = getDynamicSeeds(n);
 
             bracketMatches.value = []; let matchCounter = 1; let curSize = n / 2;
@@ -1261,9 +1472,9 @@ createApp({
                 bracketMatches.value[0][i].player2Seed = p2 ? participantList.indexOf(p2) + 1 : null;
                 if (isBye) { bracketMatches.value[0][i].player1Score = p1 ? 1 : 0; bracketMatches.value[0][i].player2Score = p2 ? 1 : 0; }
             }
-            
+
             normalBronzeMatch.value = { id: 'bronze', player1: null, player2: null, player1Score: null, player2Score: null, isBye: false, matchNumber: matchCounter++ };
-            
+
             bracketRoundNames.value = [];
             for (let i = 0; i < bracketMatches.value.length; i++) {
                 let matchesInRound = bracketMatches.value[i].length;
@@ -1288,7 +1499,7 @@ createApp({
                     const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
                     const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
                     const p1Changed = nextMatch.player1?.id !== w1Info.p?.id; const p2Changed = nextMatch.player2?.id !== w2Info.p?.id;
-                    
+
                     nextMatch.player1 = w1Info.p; nextMatch.player1Seed = w1Info.s;
                     nextMatch.player2 = w2Info.p; nextMatch.player2Seed = w2Info.s;
 
@@ -1306,7 +1517,7 @@ createApp({
                 const loser1 = getLoserInfo(m1).p; const loser2 = getLoserInfo(m2).p;
                 const p1Changed = normalBronzeMatch.value.player1?.id !== loser1?.id; const p2Changed = normalBronzeMatch.value.player2?.id !== loser2?.id;
                 normalBronzeMatch.value.player1 = loser1; normalBronzeMatch.value.player2 = loser2;
-                
+
                 if (m1Finished && m2Finished) {
                     const isBye = !loser1 || !loser2; normalBronzeMatch.value.isBye = isBye;
                     if (isBye) { normalBronzeMatch.value.player1Score = loser1 ? 1 : 0; normalBronzeMatch.value.player2Score = loser2 ? 1 : 0; } 
@@ -1322,7 +1533,7 @@ createApp({
                 for (let i = 0; i < curWb.length; i += 2) {
                     const m1 = curWb[i]; const m2 = curWb[i+1];
                     const m1Finished = isMatchFinished(m1); const m2Finished = isMatchFinished(m2);
-                    
+
                     if (nextWb) {
                         const w1Info = getWinnerInfo(m1); const w2Info = getWinnerInfo(m2);
                         const p1Changed = nextWb[i/2].player1?.id !== w1Info.p?.id; const p2Changed = nextWb[i/2].player2?.id !== w2Info.p?.id;
@@ -1364,11 +1575,11 @@ createApp({
                 if (phase === R - 1) {
                     const m1Wb = curWb[0]; const m2Lb = lbMatches.value.length > 0 ? lbMatches.value[R - 2][0] : null;
                     const m1Finished = isMatchFinished(m1Wb); const m2Finished = !m2Lb || isMatchFinished(m2Lb);
-                    
+
                     const wChamp = getWinnerInfo(m1Wb).p; const lChamp = m2Lb ? getWinnerInfo(m2Lb).p : null;
                     const gfP1Changed = gfMatch.value.player1?.id !== wChamp?.id; const gfP2Changed = gfMatch.value.player2?.id !== lChamp?.id;
                     gfMatch.value.player1 = wChamp; gfMatch.value.player2 = lChamp;
-                    
+
                     if (m1Finished && m2Finished) {
                         const isBye = !wChamp || !lChamp; gfMatch.value.isBye = isBye;
                         if (isBye) { gfMatch.value.player1Score = wChamp ? 1 : 0; gfMatch.value.player2Score = lChamp ? 1 : 0; } 
@@ -1377,11 +1588,11 @@ createApp({
                         gfMatch.value.isBye = false;
                         if (gfP1Changed || gfP2Changed) { gfMatch.value.player1Score = null; gfMatch.value.player2Score = null; }
                     }
-                    
+
                     const wLoser = getLoserInfo(m1Wb).p; const lLoser = m2Lb ? getLoserInfo(m2Lb).p : null;
                     const rzP1Changed = redemptionBronzeMatch.value.player1?.id !== wLoser?.id; const rzP2Changed = redemptionBronzeMatch.value.player2?.id !== lLoser?.id;
                     redemptionBronzeMatch.value.player1 = wLoser; redemptionBronzeMatch.value.player2 = lLoser;
-                    
+
                     if (m1Finished && m2Finished) {
                         const isBye = !wLoser || !lLoser; redemptionBronzeMatch.value.isBye = isBye;
                         if (isBye) { redemptionBronzeMatch.value.player1Score = wLoser ? 1 : 0; redemptionBronzeMatch.value.player2Score = lLoser ? 1 : 0; } 
@@ -1409,6 +1620,36 @@ createApp({
             }
         };
 
+        // 將賽事名次轉換成積分
+        const syncToGlobalStats = () => {
+            if(confirm('確定要將本次名次化為積分寫入總榜嗎？\n(每場比賽建議只執行一次)')) {
+                finalPlayerStats.value.forEach((p, index) => {
+                    const assignScore = (name, pts) => {
+                        let gPlayer = globalPlayers.value.find(g => g.name === name);
+                        if (!gPlayer) {
+                            gPlayer = { name: name, score: 1000, extreme: 0, over: 0, burst: 0 };
+                            globalPlayers.value.push(gPlayer);
+                        }
+                        gPlayer.score += pts;
+                    };
+
+                    let pointsToAdd = 2; // 參加獎
+                    if (index === 0) pointsToAdd = 50;
+                    else if (index === 1) pointsToAdd = 30;
+                    else if (index === 2) pointsToAdd = 20;
+                    else if (index === 3) pointsToAdd = 10;
+
+                    if (p.isTeam && p.members) {
+                        p.members.forEach(m => assignScore(m.name, pointsToAdd));
+                    } else {
+                        assignScore(p.name, pointsToAdd);
+                    }
+                });
+                saveGlobalStats();
+                alert('已成功依人數比例發放積分寫入總榜！');
+            }
+        };
+
         const addPlayer = () => {
             if (!newPlayerName.value.trim()) return;
             const names = newPlayerName.value.split(/[\n,，、\t]+/).map(n => n.trim()).filter(n => n !== '');
@@ -1422,7 +1663,7 @@ createApp({
         const addTeam = () => {
             const requiredMembers = tournamentMode.value === 'team_3v3' ? 3 : 2;
             const currentMembers = newTeamMembers.value.slice(0, requiredMembers);
-            
+
             if (newPlayerName.value.trim() && currentMembers.every(m => m.trim() !== '')) {
                 players.value.push({
                     id: Date.now() + Math.random(), name: newPlayerName.value.trim(), isTeam: true,
@@ -1441,27 +1682,27 @@ createApp({
             if (['random_team_rr', 'random_team_2v2'].includes(tournamentMode.value)) {
                 let shuffled = [...players.value];
                 for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
-                
+
                 const divider = tournamentMode.value === 'random_team_rr' ? 3 : 2;
                 let numTeams = Math.max(2, Math.ceil(shuffled.length / divider));
                 let generatedTeams = Array.from({length: numTeams}, (_, i) => ({
                     id: 'rt_' + Date.now() + '_' + i, name: `隨機戰隊 ${String.fromCharCode(65+i)}`, isTeam: true, members: [],
                     played: 0, wins: 0, losses: 0, totalPoints: 0, pointsAgainst: 0, advanced: false, eliminated: false
                 }));
-                
+
                 shuffled.forEach((p, idx) => { generatedTeams[idx % numTeams].members.push({ id: p.id, name: p.name, alive: true }); });
                 players.value = generatedTeams;
-                
+
                 status.value = 'playing'; 
                 if (tournamentMode.value === 'random_team_rr') generateRoundRobin();
                 else initSingleEliminationBracket();
-                
+
                 saveToLocalStorage(); return;
             }
 
             status.value = 'playing';
             for (let i = players.value.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const temp = players.value[i]; players.value[i] = players.value[j]; players.value[j] = temp; }
-            
+
             if (tournamentMode.value === 'swiss') { currentRound.value = 1; allSwissMatches.value = []; generateMatchesForRound(1); } 
             else if (['round_robin', 'super_round_robin'].includes(tournamentMode.value)) { tournamentMode.value === 'round_robin' ? generateRoundRobin() : generateSuperRoundRobin(); } 
             else if (tournamentMode.value === 'redemption') { initRedemptionBracket(); }
@@ -1554,9 +1795,6 @@ createApp({
             return true;
         });
 
-        // ==========================================
-        // 補齊結算函式
-        // ==========================================
         const finishRoundRobin = () => { 
             if (tournamentMode.value === 'random_team_rr') { updateFinalChampions(); status.value = 'champion_crowned'; } 
             else { status.value = 'swiss_finished'; }
@@ -1576,7 +1814,6 @@ createApp({
             updateFinalChampions();
             saveToLocalStorage();
         };
-        // ==========================================
 
         const forceFinishPhase = () => { status.value = 'swiss_finished'; saveToLocalStorage(); };
 
@@ -1615,7 +1852,6 @@ createApp({
 
         const reversedBracketMatches = computed(() => [...bracketMatches.value].reverse());
         const reversedBracketRoundNames = computed(() => [...bracketRoundNames.value].reverse());
-        const reversedRoundIndexToReal = (rIdx) => bracketMatches.value.length - 1 - rIdx;
         const reversedWbMatches = computed(() => [...wbMatches.value].reverse());
         const reversedLbMatches = computed(() => [...lbMatches.value].reverse());
 
@@ -1770,7 +2006,11 @@ createApp({
             }
         };
 
-        onMounted(() => { loadFromLocalStorage(); initPeer(); });
+        onMounted(() => { 
+            loadFromLocalStorage(); 
+            loadGlobalStats(); // 載入全域積分榜
+            initPeer(); 
+        });
 
         watch([status, tournamentMode, players, currentRound, allSwissMatches, rrGroups, bracketMatches, currentBracketRoundIndex, normalBronzeMatch, wbMatches, lbMatches, gfMatch, redemptionBronzeMatch, currentRedemptionPhase, finalChampion],
             () => { if (!isSpectator.value) saveToLocalStorage(); }, { deep: true }
@@ -1782,16 +2022,21 @@ createApp({
             getGroupMatches, allSwissMatchesScored, nextRoundSwiss, forceFinishPhase, rrGroups, allRRMatchesScored, finishRoundRobin,
             finishBracket, finishRedemption,
             sortedPlayers, resetKeepPlayers, resetAll, returnToSetup, toggleMode, startBracket, bracketOrientation, redemptionOrientation,
-            
+
             isShuffling, shufflingNames,
-            
+
             newTeamMembers, addTeam, active3v3Match, selectedT1Member, selectedT2Member, t1BoutScore, t2BoutScore, open3v3Modal, close3v3Modal, submitBout, t1AllDead, t2AllDead,
 
             bracketMatches, reversedBracketMatches, reversedBracketRoundNames, bracketRoundNames, allBracketMatchesScored, normalBronzeMatch,
             wbMatches, lbMatches, gfMatch, redemptionBronzeMatch, currentRedemptionPhase, canProgressRedemption, reversedWbMatches, reversedLbMatches,
-            
+
             finalChampion, finalRunnerUp, finalThird, finalFourth, finalPlayerStats, matchHistoryLog,
-            isSpectator, showQrModal, qrImageUrl, spectatorCount, connectionStatus
+            isSpectator, showQrModal, qrImageUrl, spectatorCount, connectionStatus,
+
+            // 全局系統
+            showGlobalModal, globalPlayers, newGlobalPlayerName, sortedGlobalPlayers,
+            addGlobalPlayer, updateGlobalStat, resetMonthlyFinishes, addCommonPlayer, deleteGlobalPlayer, saveGlobalStats, syncToGlobalStats,
+            extremeKing, overKing, burstKing
         };
     }
 }).mount('#app');
